@@ -2,4 +2,13 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <color name="primary">#2ECC71</color> <color name="primary_dark">#27AE60</color>
+    <color name="accent_blue">#3498DB</color>
+
+    <color name="background_light">#F5F6F7</color>
+    <color name="surface_white">#FFFFFF</color>
+    <color name="text_main">#2C3E50</color>
+    <color name="text_muted">#7F8C8D</color>
+    <color name="border_color">#DCDDE1</color>
 </resources>

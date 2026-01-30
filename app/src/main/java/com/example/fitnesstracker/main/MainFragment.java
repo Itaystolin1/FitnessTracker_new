@@ -25,6 +25,7 @@ import com.example.fitnesstracker.R;
 import com.example.fitnesstracker.maps.RunMapFragment;
 import com.example.fitnesstracker.maps.WalkMapFragment;
 import com.example.fitnesstracker.service.StepTrackingService;
+import com.google.firebase.auth.FirebaseAuth;
 
 public class MainFragment extends Fragment {
 
@@ -35,7 +36,7 @@ public class MainFragment extends Fragment {
     private FrameLayout mapContainer;
     private FrameLayout statsContainer;
     private MovementMode currentMode = MovementMode.PAUSED_INVALID;
-    private Button btnWalk, btnRun, btnStop, btnHistory;
+    private Button btnWalk, btnRun, btnStop, btnHistory, btnLogout;
 
     public MainFragment() {
         super(R.layout.fragment_main);
@@ -54,11 +55,12 @@ public class MainFragment extends Fragment {
         btnWalk = v.findViewById(R.id.btnWalk);
         btnRun  = v.findViewById(R.id.btnRun);
         btnStop = v.findViewById(R.id.btnStop);
+        btnHistory = v.findViewById(R.id.btnHistory);
+        btnLogout = v.findViewById(R.id.btnLogout);
 
         btnWalk.setOnClickListener(x -> startWalk());
         btnRun.setOnClickListener(x -> startRun());
         btnStop.setOnClickListener(x -> stopTracking());
-        btnHistory = v.findViewById(R.id.btnHistory);
 
         btnHistory.setOnClickListener(v1 ->
                 androidx.navigation.Navigation
@@ -66,9 +68,13 @@ public class MainFragment extends Fragment {
                         .navigate(R.id.action_mainFragment_to_historyFragment)
         );
 
+        btnLogout.setOnClickListener(v1 -> {
+            FirebaseAuth.getInstance().signOut();
+            NavHostFragment.findNavController(this)
+                    .navigate(R.id.action_mainFragment_to_splashFragment);
+        });
 
         updateButtons(); // initial state
-
     }
 
     // ================= PERMISSION =================
@@ -94,11 +100,6 @@ public class MainFragment extends Fragment {
             @NonNull int[] grantResults
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-
-        if (requestCode == REQ_LOCATION) {
-            // We intentionally do NOT auto-start tracking.
-            // User must press Start again → predictable UX.
-        }
     }
 
     // ================= WALK =================
@@ -167,10 +168,8 @@ public class MainFragment extends Fragment {
             return;
         }
 
-        // Immediate stop (walk OR warning disabled)
         doStop();
     }
-
 
     // ================= UI HELPERS =================
 
@@ -189,8 +188,8 @@ public class MainFragment extends Fragment {
                 .replace(R.id.statsContainer, f)
                 .commit();
     }
-    private void showRunStopWarning() {
 
+    private void showRunStopWarning() {
         View v = View.inflate(requireContext(), R.layout.dialog_run_stop_warning, null);
         CheckBox cbNever = v.findViewById(R.id.cbNever);
 
@@ -198,29 +197,29 @@ public class MainFragment extends Fragment {
                 .setTitle("End run?")
                 .setView(v)
                 .setCancelable(false)
-
                 .setPositiveButton("Stop run", (d, w) -> {
                     if (cbNever.isChecked()) {
                         RunStopWarningPrefs.disable(requireContext());
                     }
                     doStop();
                 })
-
                 .setNegativeButton("Continue run", (d, w) -> {
-                    d.dismiss(); // nothing stops, run continues
+                    d.dismiss();
                 })
-
                 .show();
     }
+
     private void doStop() {
         Intent i = new Intent(requireContext(), StepTrackingService.class);
         i.setAction(StepTrackingService.ACTION_STOP);
         requireContext().startService(i);
 
         currentMode = MovementMode.PAUSED_INVALID;
+        tvStatus.setText("Ready to Start");
+        tvTrackingInfo.setText("Choose your activity below");
 
-        tvStatus.setText("Not tracking");
-        tvTrackingInfo.setText("Nothing is being tracked");
+        // Hide the map on stop
+        mapContainer.setVisibility(View.GONE);
 
         updateButtons();
     }
@@ -230,8 +229,15 @@ public class MainFragment extends Fragment {
 
         btnWalk.setEnabled(!tracking);
         btnRun.setEnabled(!tracking);
-        btnStop.setEnabled(tracking);
+
+        // STOP button only appears when active tracking is happening
+        btnStop.setVisibility(tracking ? View.VISIBLE : View.GONE);
+
+        // Visual feedback: dim the button that isn't active
+        btnWalk.setAlpha(!tracking || currentMode == MovementMode.WALK ? 1.0f : 0.5f);
+        btnRun.setAlpha(!tracking || currentMode == MovementMode.RUN ? 1.0f : 0.5f);
     }
+
     private boolean hasActivityPermission() {
         if (Build.VERSION.SDK_INT < 29) return true;
         return ContextCompat.checkSelfPermission(
@@ -248,6 +254,4 @@ public class MainFragment extends Fragment {
             );
         }
     }
-
-
 }
