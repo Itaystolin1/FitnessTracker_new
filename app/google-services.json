@@ -1,0 +1,49 @@
+{
+  "project_info": {
+    "project_number": "278290350766",
+    "firebase_url": "https://first-proj-e2d68-default-rtdb.firebaseio.com",
+    "project_id": "first-proj-e2d68",
+    "storage_bucket": "first-proj-e2d68.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:278290350766:android:84b392cccfdf595fe6633f",
+        "android_client_info": {
+          "package_name": "com.example.fitnesstracker"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCISwOfPkWEkWm2-rjuMewZ2IcaSqw8gX0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:278290350766:android:95363b4b8a0fe324e6633f",
+        "android_client_info": {
+          "package_name": "com.example.test_3"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCISwOfPkWEkWm2-rjuMewZ2IcaSqw8gX0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
