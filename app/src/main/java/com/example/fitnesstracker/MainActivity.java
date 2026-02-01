@@ -1,61 +1,89 @@
 package com.example.fitnesstracker;
 
-import android.content.SharedPreferences;
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
-
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.navigation.NavController;
-import androidx.navigation.fragment.NavHostFragment;
+import androidx.core.content.ContextCompat;
+import androidx.fragment.app.Fragment;
 
-import com.google.firebase.auth.FirebaseAuth;
-import com.example.fitnesstracker.util.MidnightResetScheduler;
-
+import com.example.fitnesstracker.main.ActiveRunFragment;
+import com.example.fitnesstracker.main.HistoryFragment;
+import com.example.fitnesstracker.main.MainFragment;
+import com.example.fitnesstracker.maps.WalkMapFragment;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 public class MainActivity extends AppCompatActivity {
-
-    private static final String PREF = "session_pref";
-    private static final String KEY_BG_TIME = "bg_time_ms";
-    private static final long AUTO_LOGOUT_MS = 30L * 60L * 1000L; // 30 minutes
-
-    private SharedPreferences sp;
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        sp = getSharedPreferences(PREF, MODE_PRIVATE);
 
-        // ✅ REQUIRED — schedules daily reset
-        MidnightResetScheduler.schedule(this);
+        requestPermissions();
+
+        BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
+        bottomNav.setOnItemSelectedListener(item -> {
+            Fragment selectedFragment = null;
+            int id = item.getItemId();
+
+            if (id == R.id.nav_home) {
+                selectedFragment = new MainFragment();
+            } else if (id == R.id.nav_map) {
+                selectedFragment = new WalkMapFragment();
+            } else if (id == R.id.nav_history) {
+                selectedFragment = new HistoryFragment();
+            }
+
+            if (selectedFragment != null) {
+                getSupportFragmentManager().beginTransaction()
+                        .replace(R.id.fragment_container, selectedFragment)
+                        .commit();
+            }
+            return true;
+        });
+
+        // Load Default
+        if (savedInstanceState == null) {
+            bottomNav.setSelectedItemId(R.id.nav_home);
+        }
     }
 
-
-    @Override
-    protected void onStop() {
-        super.onStop();
-        sp.edit().putLong(KEY_BG_TIME, System.currentTimeMillis()).apply();
+    public void navigateToDashboard() {
+        BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
+        bottomNav.setSelectedItemId(R.id.nav_home);
     }
 
-    @Override
-    protected void onStart() {
-        super.onStart();
+    public void navigateToActiveRun() {
+        getSupportFragmentManager().beginTransaction()
+                .replace(R.id.fragment_container, new ActiveRunFragment())
+                .addToBackStack(null)
+                .commit();
+    }
 
-        long lastBg = sp.getLong(KEY_BG_TIME, -1);
-        if (lastBg > 0) {
-            long delta = System.currentTimeMillis() - lastBg;
-            if (delta >= AUTO_LOGOUT_MS && FirebaseAuth.getInstance().getCurrentUser() != null) {
-                FirebaseAuth.getInstance().signOut();
-                forceGoToSplash();
+    // --- Permission Logic ---
+    private void requestPermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACTIVITY_RECOGNITION)
+                    != PackageManager.PERMISSION_GRANTED) {
+                requestPermissionLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION);
+            }
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION);
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                    != PackageManager.PERMISSION_GRANTED) {
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
             }
         }
     }
 
-    private void forceGoToSplash() {
-        NavHostFragment navHost =
-                (NavHostFragment) getSupportFragmentManager().findFragmentById(R.id.nav_host_fragment);
-        if (navHost == null) return;
-        NavController nav = navHost.getNavController();
-        nav.popBackStack(R.id.splashFragment, false);
-    }
+    private final ActivityResultLauncher<String> requestPermissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> { });
 }

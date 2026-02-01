@@ -1,145 +1,77 @@
 package com.example.fitnesstracker.maps;
 
 import android.Manifest;
-import android.content.*;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
-import android.graphics.Color;
-import android.os.Build;
 import android.os.Bundle;
+import android.view.LayoutInflater;
 import android.view.View;
-
+import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.content.ContextCompat;
+import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.Fragment;
-
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import com.example.fitnesstracker.R;
-import com.example.fitnesstracker.data.model.MovementMode;
 import com.example.fitnesstracker.service.StepTrackingService;
-import com.example.fitnesstracker.util.WalkRouteStore;
-import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.maps.*;
-import com.google.android.gms.maps.model.*;
-
-import java.util.ArrayList;
-import java.util.List;
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.SupportMapFragment;
 
 public class WalkMapFragment extends Fragment implements OnMapReadyCallback {
 
-    private GoogleMap map;
-    private final List<Polyline> lines = new ArrayList<>();
-    private BroadcastReceiver gpsReceiver;
-    private boolean centered = false;
+    private GoogleMap mMap;
 
-    public WalkMapFragment() {
-        super(R.layout.fragment_run_map);
-    }
-
-    @Override
-    public void onViewCreated(@NonNull View v, @Nullable Bundle b) {
-        SupportMapFragment mf = new SupportMapFragment();
-        getChildFragmentManager().beginTransaction()
-                .replace(R.id.map, mf)
-                .commitNow();
-        mf.getMapAsync(this);
-    }
-
-    @Override
-    public void onMapReady(@NonNull GoogleMap g) {
-        map = g;
-
-        if (ContextCompat.checkSelfPermission(
-                requireContext(),
-                Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED) {
-            map.setMyLocationEnabled(true);
-        }
-
-        redraw();
-    }
-
-    private void redraw() {
-        if (map == null) return;
-
-        for (Polyline p : lines) p.remove();
-        lines.clear();
-
-        List<List<double[]>> segs =
-                WalkRouteStore.load(requireContext());
-
-        for (List<double[]> seg : segs) {
-            if (seg.size() < 2) continue;
-
-            List<LatLng> pts = new ArrayList<>();
-            for (double[] p : seg)
-                pts.add(new LatLng(p[0], p[1]));
-
-            lines.add(
-                    map.addPolyline(
-                            new PolylineOptions()
-                                    .color(Color.BLUE)
-                                    .width(7f)
-                                    .addAll(pts)
-                    )
-            );
-        }
-    }
-
-    @Override
-    public void onStart() {
-        super.onStart();
-
-        gpsReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context c, Intent i) {
-
-                if (!StepTrackingService.ACTION_UPDATE.equals(i.getAction()))
-                    return;
-
-                if (!MovementMode.WALK.name()
-                        .equals(i.getStringExtra(
-                                StepTrackingService.EXTRA_MODE)))
-                    return;
-
-                if (!i.hasExtra(StepTrackingService.EXTRA_LAT))
-                    return;
-
-                double lat = i.getDoubleExtra(
-                        StepTrackingService.EXTRA_LAT, 0);
-                double lng = i.getDoubleExtra(
-                        StepTrackingService.EXTRA_LNG, 0);
-
-                WalkRouteStore.append(requireContext(), lat, lng);
-                redraw();
-
-                if (!centered) {
-                    map.animateCamera(
-                            CameraUpdateFactory.newLatLngZoom(
-                                    new LatLng(lat, lng), 17f));
-                    centered = true;
-                }
+    // Receiver to listen for updates
+    private final BroadcastReceiver updateReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            // FIX: Using the correct constant ACTION_UPDATE_STATS
+            if (StepTrackingService.ACTION_UPDATE_STATS.equals(intent.getAction())) {
+                // If you later add location coordinates to the service broadcast,
+                // you would extract them here to draw the line.
             }
-        };
+        }
+    };
 
-        IntentFilter f =
-                new IntentFilter(StepTrackingService.ACTION_UPDATE);
+    @Nullable
+    @Override
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+        return inflater.inflate(R.layout.fragment_walk_map, container, false);
+    }
 
-        if (Build.VERSION.SDK_INT >= 33) {
-            requireContext().registerReceiver(
-                    gpsReceiver, f, Context.RECEIVER_NOT_EXPORTED);
-        } else {
-            ContextCompat.registerReceiver(
-                    requireContext(), gpsReceiver, f,
-                    ContextCompat.RECEIVER_NOT_EXPORTED);
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        // Initialize the map
+        SupportMapFragment mapFragment = (SupportMapFragment) getChildFragmentManager().findFragmentById(R.id.map);
+        if (mapFragment != null) {
+            mapFragment.getMapAsync(this);
         }
     }
 
     @Override
-    public void onStop() {
-        super.onStop();
-        if (gpsReceiver != null) {
-            requireContext().unregisterReceiver(gpsReceiver);
-            gpsReceiver = null;
+    public void onMapReady(@NonNull GoogleMap googleMap) {
+        mMap = googleMap;
+        // Show the blue "My Location" dot
+        if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            mMap.setMyLocationEnabled(true);
         }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        LocalBroadcastManager.getInstance(requireContext())
+                .registerReceiver(updateReceiver, new IntentFilter(StepTrackingService.ACTION_UPDATE_STATS));
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        LocalBroadcastManager.getInstance(requireContext()).unregisterReceiver(updateReceiver);
     }
 }

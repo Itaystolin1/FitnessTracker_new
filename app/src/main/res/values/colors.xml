@@ -11,4 +11,20 @@
     <color name="text_main">#2C3E50</color>
     <color name="text_muted">#7F8C8D</color>
     <color name="border_color">#DCDDE1</color>
+    <!-- Backgrounds -->
+    <color name="background_dark">#121212</color>
+    <color name="surface_dark">#1E1E1E</color>
+    <color name="surface_dark_highlight">#2C2C2C</color>
+
+    <!-- Accents -->
+    <color name="neon_green">#00E676</color> <!-- Main Action / Steps -->
+    <color name="neon_green_dim">#3300E676</color> <!-- Dimmed version for backgrounds -->
+
+    <color name="neon_cyan">#00E5FF</color> <!-- History / Secondary -->
+    <color name="neon_error">#FF1744</color> <!-- Stop / Error -->
+
+    <!-- Text -->
+    <color name="text_primary_dark">#FFFFFF</color>
+    <color name="text_secondary_dark">#B0B0B0</color>
+    <color name="text_hint_dark">#606060</color>
 </resources>

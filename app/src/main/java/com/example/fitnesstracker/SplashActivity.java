@@ -3,35 +3,36 @@ package com.example.fitnesstracker;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
-import android.view.View;
-import android.view.animation.Animation;
-import android.view.animation.AnimationUtils;
-
+import android.os.Looper;
 import androidx.appcompat.app.AppCompatActivity;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 
 public class SplashActivity extends AppCompatActivity {
-
-    private static final long TOTAL_DURATION_MS = 1600;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_splash);
 
-        View root = findViewById(R.id.splashRoot);
+        // Delay for 2 seconds to show the logo, then check auth
+        new Handler(Looper.getMainLooper()).postDelayed(this::checkAuthAndNavigate, 2000);
+    }
 
-        Animation fadeIn = AnimationUtils.loadAnimation(this, R.anim.fade_in);
-        Animation fadeOut = AnimationUtils.loadAnimation(this, R.anim.fade_out);
+    private void checkAuthAndNavigate() {
+        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
 
-        root.startAnimation(fadeIn);
+        if (currentUser != null) {
+            // User is logged in -> Go to Main Dashboard
+            Intent intent = new Intent(SplashActivity.this, MainActivity.class);
+            startActivity(intent);
+        } else {
+            // User is NOT logged in -> Go to new Intro/Onboarding Screen
+            Intent intent = new Intent(SplashActivity.this, IntroActivity.class);
+            startActivity(intent);
+        }
 
-        new Handler().postDelayed(() -> {
-            root.startAnimation(fadeOut);
-        }, 900);
-
-        new Handler().postDelayed(() -> {
-            startActivity(new Intent(this, MainActivity.class));
-            finish();
-        }, TOTAL_DURATION_MS);
+        // Close SplashActivity so user can't go back to it
+        finish();
     }
 }

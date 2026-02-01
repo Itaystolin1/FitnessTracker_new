@@ -1,160 +1,77 @@
 package com.example.fitnesstracker.maps;
 
 import android.Manifest;
-import android.content.*;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
-import android.graphics.Color;
-import android.location.Location;
-import android.os.Build;
 import android.os.Bundle;
-import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
-
+import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.content.ContextCompat;
+import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.Fragment;
-
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import com.example.fitnesstracker.R;
-import com.example.fitnesstracker.data.model.MovementMode;
 import com.example.fitnesstracker.service.StepTrackingService;
-import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.maps.*;
-import com.google.android.gms.maps.model.*;
-
-import java.util.ArrayList;
-import java.util.List;
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.SupportMapFragment;
 
 public class RunMapFragment extends Fragment implements OnMapReadyCallback {
 
-    private static final String TAG = "TRACK_MAP";
+    private GoogleMap mMap;
 
-    private GoogleMap map;
-    private Polyline polyline;
-    private final List<LatLng> route = new ArrayList<>();
-    private BroadcastReceiver gpsReceiver;
-    private boolean cameraCentered = false;
+    // Receiver to listen for updates (even if just to verify service is running)
+    private final BroadcastReceiver updateReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            // FIX: Using the correct constant ACTION_UPDATE_STATS
+            if (StepTrackingService.ACTION_UPDATE_STATS.equals(intent.getAction())) {
+                // If you later add location coordinates to the service broadcast,
+                // you would extract them here to draw the line.
+            }
+        }
+    };
 
-    public RunMapFragment() {
-        super(R.layout.fragment_run_map);
+    @Nullable
+    @Override
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+        return inflater.inflate(R.layout.fragment_run_map, container, false);
     }
 
     @Override
-    public void onViewCreated(@NonNull View view,
-                              @Nullable Bundle savedInstanceState) {
-
-        SupportMapFragment mapFragment = new SupportMapFragment();
-
-        getChildFragmentManager()
-                .beginTransaction()
-                .replace(R.id.map, mapFragment)
-                .commitNow();
-
-        mapFragment.getMapAsync(this);
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        // Initialize the map
+        SupportMapFragment mapFragment = (SupportMapFragment) getChildFragmentManager().findFragmentById(R.id.map);
+        if (mapFragment != null) {
+            mapFragment.getMapAsync(this);
+        }
     }
 
     @Override
     public void onMapReady(@NonNull GoogleMap googleMap) {
-        map = googleMap;
-
-        map.getUiSettings().setZoomControlsEnabled(true);
-        map.getUiSettings().setMyLocationButtonEnabled(true);
-
-        if (ContextCompat.checkSelfPermission(
-                requireContext(),
-                Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED) {
-
-            map.setMyLocationEnabled(true);
-
-            LocationServices
-                    .getFusedLocationProviderClient(requireContext())
-                    .getLastLocation()
-                    .addOnSuccessListener(loc -> {
-                        if (loc != null && !cameraCentered) {
-                            map.moveCamera(
-                                    CameraUpdateFactory.newLatLngZoom(
-                                            new LatLng(
-                                                    loc.getLatitude(),
-                                                    loc.getLongitude()
-                                            ), 17f)
-                            );
-                            cameraCentered = true;
-                        }
-                    });
+        mMap = googleMap;
+        // Show the blue "My Location" dot
+        if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            mMap.setMyLocationEnabled(true);
         }
     }
 
     @Override
-    public void onStart() {
-        super.onStart();
-
-        gpsReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-
-                if (!StepTrackingService.ACTION_UPDATE.equals(intent.getAction()))
-                    return;
-
-                String modeStr =
-                        intent.getStringExtra(StepTrackingService.EXTRA_MODE);
-
-                if (modeStr == null) return;
-                if (MovementMode.valueOf(modeStr) != MovementMode.RUN)
-                    return;
-
-                if (!intent.hasExtra(StepTrackingService.EXTRA_LAT))
-                    return;
-
-                double lat = intent.getDoubleExtra(
-                        StepTrackingService.EXTRA_LAT, 0);
-                double lng = intent.getDoubleExtra(
-                        StepTrackingService.EXTRA_LNG, 0);
-
-                LatLng point = new LatLng(lat, lng);
-                route.add(point);
-
-                if (map == null) return;
-
-                if (!cameraCentered) {
-                    map.animateCamera(
-                            CameraUpdateFactory.newLatLngZoom(point, 17f)
-                    );
-                    cameraCentered = true;
-                }
-
-                if (polyline == null) {
-                    polyline = map.addPolyline(
-                            new PolylineOptions()
-                                    .color(Color.RED)
-                                    .width(8f)
-                                    .addAll(route)
-                    );
-                } else {
-                    polyline.setPoints(route);
-                }
-            }
-        };
-
-        IntentFilter filter =
-                new IntentFilter(StepTrackingService.ACTION_UPDATE);
-
-        if (Build.VERSION.SDK_INT >= 33) {
-            requireContext().registerReceiver(
-                    gpsReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
-        } else {
-            ContextCompat.registerReceiver(
-                    requireContext(), gpsReceiver, filter,
-                    ContextCompat.RECEIVER_NOT_EXPORTED);
-        }
+    public void onResume() {
+        super.onResume();
+        LocalBroadcastManager.getInstance(requireContext())
+                .registerReceiver(updateReceiver, new IntentFilter(StepTrackingService.ACTION_UPDATE_STATS));
     }
 
     @Override
-    public void onStop() {
-        super.onStop();
-        if (gpsReceiver != null) {
-            requireContext().unregisterReceiver(gpsReceiver);
-            gpsReceiver = null;
-        }
+    public void onPause() {
+        super.onPause();
+        LocalBroadcastManager.getInstance(requireContext()).unregisterReceiver(updateReceiver);
     }
 }
