@@ -37,6 +37,60 @@ public class RunMapFragment extends Fragment implements OnMapReadyCallback {
         }
     };
 
+    // 2. Paste this new dialog method right below it:
+    private void showStopWarningDialog() {
+        android.view.View dialogView = android.view.LayoutInflater.from(requireContext()).inflate(R.layout.dialog_run_stop_warning, null);
+        androidx.appcompat.app.AlertDialog dialog = new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                .setView(dialogView)
+                .setCancelable(false)
+                .create();
+
+        // Ensure these IDs match the ones in your dialog_run_stop_warning.xml
+        android.widget.Button btnConfirm = dialogView.findViewById(R.id.btnConfirmStop);
+        android.widget.Button btnCancel = dialogView.findViewById(R.id.btnCancelStop);
+
+        if (btnConfirm != null) {
+            btnConfirm.setOnClickListener(v -> {
+                dialog.dismiss();
+
+                // THE FIX: Completely halt location updates immediately so numbers don't jump
+                if (fusedLocationClient != null && locationCallback != null) {
+                    fusedLocationClient.removeLocationUpdates(locationCallback);
+                }
+
+                stopRunSession();
+            });
+        }
+
+        if (btnCancel != null) {
+            btnCancel.setOnClickListener(v -> dialog.dismiss());
+        }
+
+        dialog.show();
+    }
+
+    // 3. Make sure your stopRunSession method clears everything properly:
+    private void stopRunSession() {
+        // Stop your RunTimer
+        if (runTimer != null) {
+            runTimer.stopTimer();
+        }
+
+        // Safety check: ensure location updates are dead
+        if (fusedLocationClient != null && locationCallback != null) {
+            fusedLocationClient.removeLocationUpdates(locationCallback);
+        }
+
+        // ... Any other code you have to save the run to Firebase goes here ...
+
+        // Reset UI buttons
+        btnStartRun.setVisibility(android.view.View.VISIBLE);
+        btnStopRun.setVisibility(android.view.View.GONE);
+
+        // Fix for Jumping Numbers: Reset the local distance variables for the next run
+        totalDistance = 0f;
+        // updateDistanceUI(0f); // Optional: if you have a method to reset the text on screen
+    }
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
