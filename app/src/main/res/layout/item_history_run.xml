@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:background="#222222"
+    android:layout_marginTop="8dp"
+    android:padding="12dp">
+
+    <TextView
+        android:id="@+id/tvRunDist"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="3.2 km"
+        android:textColor="#39FF14"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/tvRunTime"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="15:30"
+        android:textColor="@android:color/white" />
+
+    <TextView
+        android:id="@+id/tvRunPace"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="05:00 /km"
+        android:textColor="@android:color/darker_gray" />
+</LinearLayout>

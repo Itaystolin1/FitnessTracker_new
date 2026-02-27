@@ -35,6 +35,13 @@ import com.google.android.gms.maps.model.LatLng;
 import java.util.ArrayList;
 import java.util.Locale;
 
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
+
 public class StepTrackingService extends Service implements SensorEventListener {
 
     public static final String ACTION_START_WALK = "ACTION_START_WALK";
@@ -177,13 +184,38 @@ public class StepTrackingService extends Service implements SensorEventListener 
     private void stopTracking() {
         if (currentMode == MovementMode.RUN) {
             runTimer.stop();
+
+            // --- SAVE ONLY THE RUN TO HISTORY ---
+            String userId = com.google.firebase.auth.FirebaseAuth.getInstance().getUid();
+            if (userId != null) {
+                String todayDate = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(new java.util.Date());
+
+                // Point to today's "runs" folder
+                com.google.firebase.database.DatabaseReference runRef = com.google.firebase.database.FirebaseDatabase.getInstance()
+                        .getReference("users").child(userId).child("history").child(todayDate).child("runs").push();
+
+                // Calculate Pace for the save file
+                String paceStr = "--:-- /km";
+                if (runSessionDistance > 0.01) {
+                    double totalMinutes = runTimer.getElapsedSeconds() / 60.0;
+                    double paceVal = totalMinutes / runSessionDistance;
+                    int paceMin = (int) paceVal;
+                    int paceSec = (int) ((paceVal - paceMin) * 60);
+                    paceStr = String.format(java.util.Locale.US, "%d:%02d /km", paceMin, paceSec);
+                }
+
+                // Push the RunRecord to Firebase
+                com.example.fitnesstracker.data.model.RunRecord run =
+                        new com.example.fitnesstracker.data.model.RunRecord(runSessionDistance, runSessionCalories, paceStr, runTimer.getFormattedTime());
+                runRef.setValue(run);
+            }
         }
 
-        // THE FIX: Murder the zombie loop when stopping
         timerHandler.removeCallbacks(timerRunnable);
-
         unregisterSensors();
-        fusedLocationClient.removeLocationUpdates(locationCallback);
+        if (fusedLocationClient != null && locationCallback != null) {
+            fusedLocationClient.removeLocationUpdates(locationCallback);
+        }
         stopForeground(true);
         stopSelf();
     }
