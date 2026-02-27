@@ -1,5 +1,6 @@
 package com.example.fitnesstracker.main;
 
+import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -20,38 +21,29 @@ import com.example.fitnesstracker.data.model.MovementMode;
 import com.example.fitnesstracker.maps.RunMapFragment;
 import com.example.fitnesstracker.service.StepTrackingService;
 import java.util.Locale;
-//something
+
 public class ActiveRunFragment extends Fragment {
 
     private TextView tvTimer, tvDistance, tvPace;
     private ImageButton btnStop;
 
-    // Broadcast Receiver for updates from Service
     private final BroadcastReceiver updateReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             if (getActivity() == null) return;
 
-            // Only update if we are in RUN mode
             String mode = intent.getStringExtra(StepTrackingService.EXTRA_MODE);
             if (!MovementMode.RUN.name().equals(mode)) return;
 
-            // Update Timer
             if (intent.hasExtra(StepTrackingService.EXTRA_ELAPSED_TIME)) {
-                String time = intent.getStringExtra(StepTrackingService.EXTRA_ELAPSED_TIME);
-                tvTimer.setText(time);
+                tvTimer.setText(intent.getStringExtra(StepTrackingService.EXTRA_ELAPSED_TIME));
             }
-
-            // Update Distance
             if (intent.hasExtra(StepTrackingService.EXTRA_DISTANCE)) {
                 float dist = intent.getFloatExtra(StepTrackingService.EXTRA_DISTANCE, 0f);
                 tvDistance.setText(String.format(Locale.US, "%.2f km", dist));
             }
-
-            // Update Pace
             if (intent.hasExtra(StepTrackingService.EXTRA_PACE)) {
-                String pace = intent.getStringExtra(StepTrackingService.EXTRA_PACE);
-                tvPace.setText(pace);
+                tvPace.setText(intent.getStringExtra(StepTrackingService.EXTRA_PACE));
             }
         }
     };
@@ -66,34 +58,43 @@ public class ActiveRunFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        // 1. Initialize Views
         tvTimer = view.findViewById(R.id.tvTimer);
         tvDistance = view.findViewById(R.id.tvRunDistance);
         tvPace = view.findViewById(R.id.tvRunPace);
         btnStop = view.findViewById(R.id.btnStop);
 
-        // 2. Embed the Map Fragment into the top container
         if (getChildFragmentManager().findFragmentById(R.id.mapContainer) == null) {
             getChildFragmentManager().beginTransaction()
                     .replace(R.id.mapContainer, new RunMapFragment())
                     .commit();
         }
 
-        // 3. Stop Button Logic
-        btnStop.setOnClickListener(v -> {
-            // Stop the service tracking
-            Intent serviceIntent = new Intent(requireContext(), StepTrackingService.class);
-            serviceIntent.setAction(StepTrackingService.ACTION_STOP_TRACKING);
-            requireContext().startService(serviceIntent);
+        // FIX: Replaced direct stop with a Warning Dialog!
+        btnStop.setOnClickListener(v -> showStopWarning());
 
-            // Navigate back to Dashboard
-            if (getActivity() instanceof MainActivity) {
-                ((MainActivity) getActivity()).navigateToDashboard();
-            }
-        });
-
-        // 4. Start the Run Service immediately
         startRunSession();
+    }
+
+    private void showStopWarning() {
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Stop Running?")
+                .setMessage("Are you sure you want to stop this run? If you stop, you cannot continue this session.")
+                .setPositiveButton("Stop Run", (dialog, which) -> {
+                    // Stop the service tracking
+                    Intent serviceIntent = new Intent(requireContext(), StepTrackingService.class);
+                    serviceIntent.setAction(StepTrackingService.ACTION_STOP_TRACKING);
+                    requireContext().startService(serviceIntent);
+
+                    // Navigate back to Dashboard
+                    if (getActivity() instanceof MainActivity) {
+                        ((MainActivity) getActivity()).navigateToDashboard();
+                    }
+                })
+                .setNegativeButton("Cancel", (dialog, which) -> {
+                    dialog.dismiss(); // Closes dialog, run continues in background!
+                })
+                .setCancelable(false)
+                .show();
     }
 
     private void startRunSession() {
@@ -105,7 +106,6 @@ public class ActiveRunFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
-        // Listen for updates
         LocalBroadcastManager.getInstance(requireContext())
                 .registerReceiver(updateReceiver, new IntentFilter(StepTrackingService.ACTION_UPDATE_STATS));
     }

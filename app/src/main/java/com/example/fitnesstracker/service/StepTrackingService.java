@@ -22,7 +22,7 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import com.example.fitnesstracker.MainActivity;
 import com.example.fitnesstracker.R;
 import com.example.fitnesstracker.data.model.MovementMode;
-import com.example.fitnesstracker.util.DistanceEstimator;
+import com.example.fitnesstracker.util.StepPrefs;
 import com.example.fitnesstracker.util.RunTimer;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
@@ -30,12 +30,13 @@ import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.Priority;
+import com.google.android.gms.maps.model.LatLng;
 
+import java.util.ArrayList;
 import java.util.Locale;
 
 public class StepTrackingService extends Service implements SensorEventListener {
 
-    // --- CONSTANTS (Must match Fragments) ---
     public static final String ACTION_START_WALK = "ACTION_START_WALK";
     public static final String ACTION_START_RUN = "ACTION_START_RUN";
     public static final String ACTION_STOP_TRACKING = "ACTION_STOP_TRACKING";
@@ -47,7 +48,9 @@ public class StepTrackingService extends Service implements SensorEventListener 
     public static final String EXTRA_CALORIES = "EXTRA_CALORIES";
     public static final String EXTRA_ELAPSED_TIME = "EXTRA_ELAPSED_TIME";
     public static final String EXTRA_PACE = "EXTRA_PACE";
+    public static final String EXTRA_PATH = "EXTRA_PATH";
 
+    private ArrayList<LatLng> currentPath = new ArrayList<>();
     private static final int NOTIFICATION_ID = 1;
     private static final String CHANNEL_ID = "FitnessTrackerChannel";
 
@@ -58,10 +61,20 @@ public class StepTrackingService extends Service implements SensorEventListener 
     private RunTimer runTimer;
 
     private MovementMode currentMode = MovementMode.WALK;
-    private int sessionSteps = 0;
-    private float sessionDistance = 0f;
-    private int sessionCalories = 0;
-    private int baselineSteps = -1;
+
+    // --- DAILY TRACKING VARIABLES ---
+    private long dailyBaseline = -1;
+    private long dailySteps = 0;
+
+    // --- RUN SESSION VARIABLES ---
+    private long runSessionBaseline = -1;
+    private int runSessionSteps = 0;
+    private float runSessionDistance = 0f;
+    private int runSessionCalories = 0;
+
+    // THE FIX: Create a global Handler and Runnable we can control and kill!
+    private final Handler timerHandler = new Handler(Looper.getMainLooper());
+    private Runnable timerRunnable;
 
     @Override
     public void onCreate() {
@@ -77,6 +90,21 @@ public class StepTrackingService extends Service implements SensorEventListener 
         runTimer = new RunTimer();
 
         setupLocationCallback();
+
+        StepPrefs.ensureToday(this);
+        dailyBaseline = StepPrefs.getBaseline(this);
+        dailySteps = StepPrefs.getSteps(this);
+
+        // THE FIX: Define the loop here, but don't start it yet
+        timerRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (currentMode == MovementMode.RUN) {
+                    broadcastUpdates();
+                    timerHandler.postDelayed(this, 1000);
+                }
+            }
+        };
     }
 
     private void setupLocationCallback() {
@@ -85,10 +113,9 @@ public class StepTrackingService extends Service implements SensorEventListener 
             public void onLocationResult(LocationResult locationResult) {
                 if (locationResult == null) return;
                 for (Location location : locationResult.getLocations()) {
-                    // In a real app, we would add points to the route here
-                    // For now, we rely on distance updates
-                    broadcastUpdates();
+                    currentPath.add(new LatLng(location.getLatitude(), location.getLongitude()));
                 }
+                broadcastUpdates();
             }
         };
     }
@@ -116,36 +143,45 @@ public class StepTrackingService extends Service implements SensorEventListener 
         currentMode = MovementMode.WALK;
         startForeground(NOTIFICATION_ID, getNotification("Tracking Walk"));
         registerSensors();
+        currentPath.clear();
+
+        // THE FIX: Kill any leftover run loop when starting walk mode
+        timerHandler.removeCallbacks(timerRunnable);
     }
 
     private void startRunMode() {
         currentMode = MovementMode.RUN;
-        sessionSteps = 0;
-        sessionDistance = 0f;
-        sessionCalories = 0;
-        baselineSteps = -1;
+
+        runSessionBaseline = -1;
+        runSessionSteps = 0;
+        runSessionDistance = 0f;
+        runSessionCalories = 0;
+
+        if (currentPath != null) {
+            currentPath.clear();
+        }
+        if (runTimer != null) {
+            runTimer.reset();
+        }
 
         runTimer.start();
         startForeground(NOTIFICATION_ID, getNotification("Tracking Run"));
         registerSensors();
         startLocationUpdates();
 
-        // Timer updates every second
-        new Handler(Looper.getMainLooper()).post(new Runnable() {
-            @Override
-            public void run() {
-                if (currentMode == MovementMode.RUN) {
-                    broadcastUpdates();
-                    new Handler(Looper.getMainLooper()).postDelayed(this, 1000);
-                }
-            }
-        });
+        // THE FIX: Kill any zombie loops, then start exactly ONE clean loop
+        timerHandler.removeCallbacks(timerRunnable);
+        timerHandler.post(timerRunnable);
     }
 
     private void stopTracking() {
         if (currentMode == MovementMode.RUN) {
             runTimer.stop();
         }
+
+        // THE FIX: Murder the zombie loop when stopping
+        timerHandler.removeCallbacks(timerRunnable);
+
         unregisterSensors();
         fusedLocationClient.removeLocationUpdates(locationCallback);
         stopForeground(true);
@@ -178,27 +214,43 @@ public class StepTrackingService extends Service implements SensorEventListener 
     @Override
     public void onSensorChanged(SensorEvent event) {
         if (event.sensor.getType() == Sensor.TYPE_STEP_COUNTER) {
-            int totalSteps = (int) event.values[0];
-            if (baselineSteps == -1) {
-                baselineSteps = totalSteps;
+            long totalBootSteps = (long) event.values[0];
+
+            StepPrefs.ensureToday(this);
+            dailyBaseline = StepPrefs.getBaseline(this);
+
+            if (dailyBaseline == -1) {
+                dailyBaseline = totalBootSteps;
+                StepPrefs.setBaseline(this, dailyBaseline);
             }
 
-            int newSteps = totalSteps - baselineSteps;
-            // Simple delta check to avoid huge jumps on restart
-            if (newSteps < 0) newSteps = 0;
+            long calculatedDailySteps = totalBootSteps - dailyBaseline;
 
-            // Calculate delta since last update to add distance
-            int stepDelta = newSteps - sessionSteps;
-            if (stepDelta > 0) {
-                sessionSteps = newSteps;
-                // Rough estimate: 0.75m per step
-                float addedDistance = stepDelta * 0.00075f;
-                sessionDistance += addedDistance;
-                // Rough estimate: 0.04 kcal per step
-                sessionCalories += (int)(stepDelta * 0.04);
-
-                broadcastUpdates();
+            if (calculatedDailySteps < 0) {
+                dailyBaseline = totalBootSteps;
+                StepPrefs.setBaseline(this, dailyBaseline);
+                calculatedDailySteps = 0;
             }
+
+            if (calculatedDailySteps >= dailySteps) {
+                dailySteps = calculatedDailySteps;
+                StepPrefs.setSteps(this, dailySteps);
+            }
+
+            if (currentMode == MovementMode.RUN) {
+                if (runSessionBaseline == -1) {
+                    runSessionBaseline = totalBootSteps;
+                }
+                int currentRunSteps = (int) (totalBootSteps - runSessionBaseline);
+                if (currentRunSteps > runSessionSteps) {
+                    int delta = currentRunSteps - runSessionSteps;
+                    runSessionSteps = currentRunSteps;
+                    runSessionDistance += delta * 0.00075f;
+                    runSessionCalories += (int)(delta * 0.04);
+                }
+            }
+
+            broadcastUpdates();
         }
     }
 
@@ -208,17 +260,21 @@ public class StepTrackingService extends Service implements SensorEventListener 
     private void broadcastUpdates() {
         Intent intent = new Intent(ACTION_UPDATE_STATS);
         intent.putExtra(EXTRA_MODE, currentMode.name());
-        intent.putExtra(EXTRA_STEPS, sessionSteps);
-        intent.putExtra(EXTRA_DISTANCE, sessionDistance);
-        intent.putExtra(EXTRA_CALORIES, sessionCalories);
+        intent.putParcelableArrayListExtra(EXTRA_PATH, currentPath);
 
-        if (currentMode == MovementMode.RUN) {
+        if (currentMode == MovementMode.WALK) {
+            intent.putExtra(EXTRA_STEPS, (int) dailySteps);
+            intent.putExtra(EXTRA_DISTANCE, dailySteps * 0.00075f);
+            intent.putExtra(EXTRA_CALORIES, (int)(dailySteps * 0.04));
+        } else {
+            intent.putExtra(EXTRA_STEPS, runSessionSteps);
+            intent.putExtra(EXTRA_DISTANCE, runSessionDistance);
+            intent.putExtra(EXTRA_CALORIES, runSessionCalories);
             intent.putExtra(EXTRA_ELAPSED_TIME, runTimer.getFormattedTime());
 
-            // Calculate Pace (min/km)
-            if (sessionDistance > 0.01) {
+            if (runSessionDistance > 0.01) {
                 double totalMinutes = runTimer.getElapsedSeconds() / 60.0;
-                double paceVal = totalMinutes / sessionDistance;
+                double paceVal = totalMinutes / runSessionDistance;
                 int paceMin = (int) paceVal;
                 int paceSec = (int) ((paceVal - paceMin) * 60);
                 intent.putExtra(EXTRA_PACE, String.format(Locale.US, "%d:%02d /km", paceMin, paceSec));
@@ -229,11 +285,10 @@ public class StepTrackingService extends Service implements SensorEventListener 
 
         LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
 
-        // Update notification
         NotificationManager manager = getSystemService(NotificationManager.class);
         if (manager != null) {
             manager.notify(NOTIFICATION_ID, getNotification(
-                    currentMode == MovementMode.RUN ? runTimer.getFormattedTime() : sessionSteps + " steps"
+                    currentMode == MovementMode.RUN ? runTimer.getFormattedTime() : dailySteps + " steps"
             ));
         }
     }
@@ -243,7 +298,7 @@ public class StepTrackingService extends Service implements SensorEventListener 
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE);
 
         return new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle(currentMode == MovementMode.RUN ? "Running Session" : "Walking Tracker")
+                .setContentTitle(currentMode == MovementMode.RUN ? "Running Session" : "Daily Tracking Active")
                 .setContentText(contentText)
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
                 .setContentIntent(pendingIntent)
@@ -262,6 +317,17 @@ public class StepTrackingService extends Service implements SensorEventListener 
             if (manager != null) {
                 manager.createNotificationChannel(serviceChannel);
             }
+        }
+    }
+
+    // THE FIX: Cleanup everything if Android destroys the service
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        timerHandler.removeCallbacks(timerRunnable);
+        unregisterSensors();
+        if (fusedLocationClient != null && locationCallback != null) {
+            fusedLocationClient.removeLocationUpdates(locationCallback);
         }
     }
 

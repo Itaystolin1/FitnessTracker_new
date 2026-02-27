@@ -24,17 +24,20 @@ public class RunTimer {
         }
     }
 
-    /**
-     * Returns the total elapsed time in seconds.
-     */
+    // THE FIX: Added a reset method to clear the memory for new runs!
+    public void reset() {
+        startTime = 0L;
+        timeInMilliseconds = 0L;
+        timeSwapBuff = 0L;
+        updatedTime = 0L;
+        isRunning = false;
+    }
+
     public long getElapsedSeconds() {
         updateTime();
         return updatedTime / 1000;
     }
 
-    /**
-     * Returns the formatted time string (e.g., "00:05:30" or "05:30").
-     */
     public String getFormattedTime() {
         updateTime();
         int secs = (int) (updatedTime / 1000);
