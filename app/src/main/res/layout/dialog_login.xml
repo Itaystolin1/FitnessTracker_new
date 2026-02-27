@@ -45,7 +45,7 @@
         android:layout_height="wrap_content"/>
 
     <Button
-        android:id="@+id/btnDoLogin"
+        android:id="@+id/btnLogin"
         android:text="Login"
         android:layout_marginTop="16dp"
         android:layout_width="match_parent"
