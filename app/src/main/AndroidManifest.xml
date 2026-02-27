@@ -19,7 +19,6 @@
         <activity
             android:name=".IntroActivity"
             android:exported="false" />
-        <!-- ✅ GOOGLE MAPS API KEY (MUST BE HERE) -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyBR7tPIPNGtfKgpi43jDuNlXX0ovTvUx-0" />

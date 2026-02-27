@@ -7,21 +7,18 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
-import android.view.LayoutInflater;
 import android.view.View;
-import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
-import androidx.fragment.app.Fragment;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
-import com.example.fitnesstracker.R;
 import com.example.fitnesstracker.service.StepTrackingService;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 
-public class WalkMapFragment extends Fragment implements OnMapReadyCallback {
+// THE FIX: Change "Fragment" to "SupportMapFragment"
+public class WalkMapFragment extends SupportMapFragment implements OnMapReadyCallback {
 
     private GoogleMap mMap;
 
@@ -29,7 +26,6 @@ public class WalkMapFragment extends Fragment implements OnMapReadyCallback {
     private final BroadcastReceiver updateReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            // FIX: Using the correct constant ACTION_UPDATE_STATS
             if (StepTrackingService.ACTION_UPDATE_STATS.equals(intent.getAction())) {
                 // If you later add location coordinates to the service broadcast,
                 // you would extract them here to draw the line.
@@ -37,20 +33,11 @@ public class WalkMapFragment extends Fragment implements OnMapReadyCallback {
         }
     };
 
-    @Nullable
-    @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        return inflater.inflate(R.layout.fragment_walk_map, container, false);
-    }
-
+    // THE FIX: We use onViewCreated instead of onCreateView to load the map directly
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        // Initialize the map
-        SupportMapFragment mapFragment = (SupportMapFragment) getChildFragmentManager().findFragmentById(R.id.map);
-        if (mapFragment != null) {
-            mapFragment.getMapAsync(this);
-        }
+        getMapAsync(this);
     }
 
     @Override
