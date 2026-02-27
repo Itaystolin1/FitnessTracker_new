@@ -20,7 +20,7 @@ import com.example.fitnesstracker.data.model.MovementMode;
 import com.example.fitnesstracker.maps.RunMapFragment;
 import com.example.fitnesstracker.service.StepTrackingService;
 import java.util.Locale;
-
+//something
 public class ActiveRunFragment extends Fragment {
 
     private TextView tvTimer, tvDistance, tvPace;
