@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -34,6 +35,10 @@ public class MainFragment extends Fragment {
     private Button btnStartRun;
     private ImageButton btnLogout;
     private SwitchMaterial switchWalkTracking;
+
+    // Key for SharedPreferences
+    private static final String PREF_TRACKER = "TrackerPrefs";
+    private static final String KEY_IS_TRACKING = "TRACKING_ENABLED";
 
     private final BroadcastReceiver statsReceiver = new BroadcastReceiver() {
         @Override
@@ -77,6 +82,13 @@ public class MainFragment extends Fragment {
         String today = new SimpleDateFormat("EEEE, MMM d", Locale.getDefault()).format(new Date());
         tvDate.setText(today.toUpperCase());
 
+        // --- THE MEMORY FIX ---
+        SharedPreferences prefs = requireContext().getSharedPreferences(PREF_TRACKER, Context.MODE_PRIVATE);
+        // Default is FALSE. It will only be true if the user manually turned it on before!
+        boolean isTrackingEnabled = prefs.getBoolean(KEY_IS_TRACKING, false);
+
+        switchWalkTracking.setChecked(isTrackingEnabled);
+
         // Start Running Logic
         btnStartRun.setOnClickListener(v -> {
             if (getActivity() instanceof MainActivity) {
@@ -88,13 +100,15 @@ public class MainFragment extends Fragment {
         btnLogout.setOnClickListener(v -> {
             FirebaseAuth.getInstance().signOut();
             Intent intent = new Intent(requireContext(), IntroActivity.class);
-            // Clear back stack so user can't press back to get in
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             startActivity(intent);
         });
 
         // Walk Tracking Toggle Logic
         switchWalkTracking.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            // Save their choice to memory
+            prefs.edit().putBoolean(KEY_IS_TRACKING, isChecked).apply();
+
             Intent intent = new Intent(requireContext(), StepTrackingService.class);
             if (isChecked) {
                 intent.setAction(StepTrackingService.ACTION_START_WALK);
@@ -107,8 +121,8 @@ public class MainFragment extends Fragment {
             }
         });
 
-        // Ensure tracking is ON by default
-        if (switchWalkTracking.isChecked()) {
+        // Ensure tracking starts if they left it on
+        if (isTrackingEnabled) {
             startDailyTracking();
         }
     }

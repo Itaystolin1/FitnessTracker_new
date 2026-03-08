@@ -14,6 +14,7 @@ import com.example.fitnesstracker.main.ActiveRunFragment;
 import com.example.fitnesstracker.main.HistoryFragment;
 import com.example.fitnesstracker.main.MainFragment;
 import com.example.fitnesstracker.maps.WalkMapFragment;
+import com.example.fitnesstracker.util.MidnightResetScheduler;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 public class MainActivity extends AppCompatActivity {
@@ -24,7 +25,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         requestPermissions();
-
+        MidnightResetScheduler.schedule(this);
         BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
         bottomNav.setOnItemSelectedListener(item -> {
             Fragment selectedFragment = null;
