@@ -44,7 +44,22 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
 
         // 1. Set Background Walk Summary
         if (record.summary != null) {
-            holder.tvDate.setText(record.summary.date);
+
+            // --- THE DATE FORMAT FIX ---
+            String displayDate = record.summary.date; // Default is yyyy-MM-dd
+            try {
+                java.text.SimpleDateFormat originalFormat = new java.text.SimpleDateFormat("yyyy-MM-dd", Locale.US);
+                java.text.SimpleDateFormat newFormat = new java.text.SimpleDateFormat("dd-MM-yyyy", Locale.US); // Day-Month-Year
+                java.util.Date dateObj = originalFormat.parse(record.summary.date);
+                if (dateObj != null) {
+                    displayDate = newFormat.format(dateObj);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            holder.tvDate.setText(displayDate);
+            // ---------------------------
+
             holder.tvSteps.setText(String.valueOf(record.summary.walkSteps));
             holder.tvDistance.setText(String.format(Locale.US, "%.2f km", record.summary.walkDistance));
             holder.tvCalories.setText(String.valueOf(record.summary.walkCalories));

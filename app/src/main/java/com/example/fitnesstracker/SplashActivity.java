@@ -1,6 +1,7 @@
 package com.example.fitnesstracker;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -15,24 +16,36 @@ public class SplashActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_splash);
 
-        // Delay for 2 seconds to show the logo, then check auth
         new Handler(Looper.getMainLooper()).postDelayed(this::checkAuthAndNavigate, 2000);
     }
 
     private void checkAuthAndNavigate() {
         FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        SharedPreferences prefs = getSharedPreferences("AppSessionPrefs", MODE_PRIVATE);
+
+        long lastActiveTime = prefs.getLong("last_active_time", 0);
+        long currentTime = System.currentTimeMillis();
+
+        // --- TIMEOUT CONFIGURATION ---
+        // Change the 24 to a 6 if you really want a strict 6-hour timeout!
+        long timeoutInMillis = 24 * 60 * 60 * 1000L;
 
         if (currentUser != null) {
-            // User is logged in -> Go to Main Dashboard
-            Intent intent = new Intent(SplashActivity.this, MainActivity.class);
-            startActivity(intent);
+            // Check if they exceeded the time gap
+            if (lastActiveTime > 0 && (currentTime - lastActiveTime) > timeoutInMillis) {
+                // Timeout! Log them out.
+                FirebaseAuth.getInstance().signOut();
+                prefs.edit().putLong("last_active_time", 0).apply();
+                startActivity(new Intent(SplashActivity.this, IntroActivity.class));
+            } else {
+                // Still valid! Proceed to the app.
+                startActivity(new Intent(SplashActivity.this, MainActivity.class));
+            }
         } else {
-            // User is NOT logged in -> Go to new Intro/Onboarding Screen
-            Intent intent = new Intent(SplashActivity.this, IntroActivity.class);
-            startActivity(intent);
+            // Never logged in
+            startActivity(new Intent(SplashActivity.this, IntroActivity.class));
         }
 
-        // Close SplashActivity so user can't go back to it
         finish();
     }
 }

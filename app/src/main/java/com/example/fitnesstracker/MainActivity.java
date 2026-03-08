@@ -84,6 +84,15 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Update the user's last active time whenever they open the main app
+        getSharedPreferences("AppSessionPrefs", MODE_PRIVATE)
+                .edit()
+                .putLong("last_active_time", System.currentTimeMillis())
+                .apply();
+    }
     private final ActivityResultLauncher<String> requestPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> { });
 }

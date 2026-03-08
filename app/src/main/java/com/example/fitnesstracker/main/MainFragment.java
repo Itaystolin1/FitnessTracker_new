@@ -82,9 +82,7 @@ public class MainFragment extends Fragment {
         String today = new SimpleDateFormat("EEEE, MMM d", Locale.getDefault()).format(new Date());
         tvDate.setText(today.toUpperCase());
 
-        // --- THE MEMORY FIX ---
         SharedPreferences prefs = requireContext().getSharedPreferences(PREF_TRACKER, Context.MODE_PRIVATE);
-        // Default is FALSE. It will only be true if the user manually turned it on before!
         boolean isTrackingEnabled = prefs.getBoolean(KEY_IS_TRACKING, false);
 
         switchWalkTracking.setChecked(isTrackingEnabled);
@@ -106,7 +104,6 @@ public class MainFragment extends Fragment {
 
         // Walk Tracking Toggle Logic
         switchWalkTracking.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            // Save their choice to memory
             prefs.edit().putBoolean(KEY_IS_TRACKING, isChecked).apply();
 
             Intent intent = new Intent(requireContext(), StepTrackingService.class);
@@ -121,10 +118,22 @@ public class MainFragment extends Fragment {
             }
         });
 
-        // Ensure tracking starts if they left it on
         if (isTrackingEnabled) {
             startDailyTracking();
         }
+
+        // THE FIX: Instantly load the numbers from memory!
+        loadCurrentStats();
+    }
+
+    private void loadCurrentStats() {
+        long currentSteps = com.example.fitnesstracker.util.StepPrefs.getSteps(requireContext());
+        float dist = currentSteps * 0.00075f;
+        int cals = (int) (currentSteps * 0.04);
+
+        tvStepCount.setText(String.valueOf(currentSteps));
+        tvDistance.setText(String.format(Locale.US, "%.2f km", dist));
+        tvCalories.setText(String.format(Locale.US, "%d kcal", cals));
     }
 
     private void startDailyTracking() {
@@ -138,6 +147,9 @@ public class MainFragment extends Fragment {
         super.onResume();
         LocalBroadcastManager.getInstance(requireContext())
                 .registerReceiver(statsReceiver, new IntentFilter(StepTrackingService.ACTION_UPDATE_STATS));
+
+        // Also refresh it when the screen resumes!
+        loadCurrentStats();
     }
 
     @Override
