@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="16dp"
+    app:cardBackgroundColor="#1E1E1E"
+    app:cardCornerRadius="24dp"
+    app:cardElevation="12dp">
+
+    <LinearLayout
+        android:orientation="vertical"
+        android:padding="24dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:text="HOW TO USE"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="#39FF14"
+            android:letterSpacing="0.05"
+            android:layout_gravity="center"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="250dp"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="16dp"
+            android:fadeScrollbars="false">
+
+            <TextView
+                android:id="@+id/tvInstructionsText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#CCCCCC"
+                android:textSize="15sp"
+                android:lineSpacingExtra="6dp"
+                android:text="1. Daily Walk Tracking\nTurn on the tracker in the dashboard. It will count your steps in the background all day.\n\n2. Active Runs\nPress 'Start New Run' to map your route, track your speed, and measure your exact pace using GPS.\n\n3. History\nCheck the History tab to see your daily step summaries and isolated run data.\n\n(You can replace this text later with your full explanation!)" />
+        </ScrollView>
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnCloseInstructions"
+            android:text="GOT IT"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="#000000"
+            android:background="@drawable/btn_neon_primary"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"/>
+
+    </LinearLayout>
+</androidx.cardview.widget.CardView>

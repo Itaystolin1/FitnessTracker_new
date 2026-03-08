@@ -70,4 +70,15 @@ public class LoginDialogFragment extends DialogFragment {
                     });
         });
     }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        // This makes the default white pop-up box completely invisible!
+        if (getDialog() != null && getDialog().getWindow() != null) {
+            getDialog().getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+            // Makes the pop-up wide enough so your text isn't cramped
+            getDialog().getWindow().setLayout(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
+    }
 }

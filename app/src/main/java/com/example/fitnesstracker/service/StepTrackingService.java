@@ -35,13 +35,6 @@ import com.google.android.gms.maps.model.LatLng;
 import java.util.ArrayList;
 import java.util.Locale;
 
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.FirebaseDatabase;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-
-
 public class StepTrackingService extends Service implements SensorEventListener {
 
     public static final String ACTION_START_WALK = "ACTION_START_WALK";
@@ -79,7 +72,6 @@ public class StepTrackingService extends Service implements SensorEventListener 
     private float runSessionDistance = 0f;
     private int runSessionCalories = 0;
 
-    // THE FIX: Create a global Handler and Runnable we can control and kill!
     private final Handler timerHandler = new Handler(Looper.getMainLooper());
     private Runnable timerRunnable;
 
@@ -102,7 +94,6 @@ public class StepTrackingService extends Service implements SensorEventListener 
         dailyBaseline = StepPrefs.getBaseline(this);
         dailySteps = StepPrefs.getSteps(this);
 
-        // THE FIX: Define the loop here, but don't start it yet
         timerRunnable = new Runnable() {
             @Override
             public void run() {
@@ -148,12 +139,20 @@ public class StepTrackingService extends Service implements SensorEventListener 
 
     private void startWalkMode() {
         currentMode = MovementMode.WALK;
+
+        // THE FIX: Instantly sync the service's temporary memory with your phone's deep memory!
+        StepPrefs.ensureToday(this);
+        dailyBaseline = StepPrefs.getBaseline(this);
+        dailySteps = StepPrefs.getSteps(this);
+
         startForeground(NOTIFICATION_ID, getNotification("Tracking Walk"));
         registerSensors();
         currentPath.clear();
 
-        // THE FIX: Kill any leftover run loop when starting walk mode
         timerHandler.removeCallbacks(timerRunnable);
+
+        // THE FIX: Forcefully shout the correct steps to the Dashboard immediately so it NEVER shows 0!
+        broadcastUpdates();
     }
 
     private void startRunMode() {
@@ -176,7 +175,6 @@ public class StepTrackingService extends Service implements SensorEventListener 
         registerSensors();
         startLocationUpdates();
 
-        // THE FIX: Kill any zombie loops, then start exactly ONE clean loop
         timerHandler.removeCallbacks(timerRunnable);
         timerHandler.post(timerRunnable);
     }
@@ -185,16 +183,13 @@ public class StepTrackingService extends Service implements SensorEventListener 
         if (currentMode == MovementMode.RUN) {
             runTimer.stop();
 
-            // --- SAVE ONLY THE RUN TO HISTORY ---
             String userId = com.google.firebase.auth.FirebaseAuth.getInstance().getUid();
             if (userId != null) {
                 String todayDate = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(new java.util.Date());
 
-                // Point to today's "runs" folder
                 com.google.firebase.database.DatabaseReference runRef = com.google.firebase.database.FirebaseDatabase.getInstance()
                         .getReference("users").child(userId).child("history").child(todayDate).child("runs").push();
 
-                // Calculate Pace for the save file
                 String paceStr = "--:-- /km";
                 if (runSessionDistance > 0.01) {
                     double totalMinutes = runTimer.getElapsedSeconds() / 60.0;
@@ -204,7 +199,6 @@ public class StepTrackingService extends Service implements SensorEventListener 
                     paceStr = String.format(java.util.Locale.US, "%d:%02d /km", paceMin, paceSec);
                 }
 
-                // Push the RunRecord to Firebase
                 com.example.fitnesstracker.data.model.RunRecord run =
                         new com.example.fitnesstracker.data.model.RunRecord(runSessionDistance, runSessionCalories, paceStr, runTimer.getFormattedTime());
                 runRef.setValue(run);
@@ -352,7 +346,6 @@ public class StepTrackingService extends Service implements SensorEventListener 
         }
     }
 
-    // THE FIX: Cleanup everything if Android destroys the service
     @Override
     public void onDestroy() {
         super.onDestroy();
