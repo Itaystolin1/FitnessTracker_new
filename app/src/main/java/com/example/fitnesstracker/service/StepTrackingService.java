@@ -41,7 +41,7 @@ import com.google.firebase.database.FirebaseDatabase;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
-
+//git check
 public class StepTrackingService extends Service implements SensorEventListener {
 
     public static final String ACTION_START_WALK = "ACTION_START_WALK";
