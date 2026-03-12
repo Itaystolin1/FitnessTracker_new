@@ -58,7 +58,6 @@ public class MidnightResetWorker extends Worker {
 
         // 3. Wipe local memory for the new day
         StepPrefs.hardResetForNewDay(context);
-        WalkRouteStore.clear(context);
 
         // THE FIX: Because we use OneTimeWorkRequest now, we must ask the scheduler to set the timer for tomorrow!
         MidnightResetScheduler.schedule(context);
