@@ -1,5 +1,6 @@
 package com.example.fitnesstracker.auth;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.ArrayAdapter;
@@ -10,18 +11,18 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.navigation.fragment.NavHostFragment;
+import androidx.fragment.app.DialogFragment;
 
+import com.example.fitnesstracker.MainActivity;
 import com.example.fitnesstracker.R;
 import com.example.fitnesstracker.util.StepPrefs;
-import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.FirebaseDatabase;
 
 import java.util.HashMap;
 import java.util.Map;
 
-public class RegisterDialogFragment extends BottomSheetDialogFragment {
+public class RegisterDialogFragment extends DialogFragment {
 
     public RegisterDialogFragment() {
         super(R.layout.dialog_register);
@@ -107,11 +108,12 @@ public class RegisterDialogFragment extends BottomSheetDialogFragment {
                             );
 
                             dismiss();
-                            NavHostFragment
-                                    .findNavController(requireParentFragment())
-                                    .navigate(
-                                            R.id.action_splashFragment_to_mainFragment
-                                    );
+
+                            // THE FIX: Use a standard Intent to launch MainActivity and close IntroActivity!
+                            Intent intent = new Intent(requireActivity(), MainActivity.class);
+                            startActivity(intent);
+                            requireActivity().finish();
+
                         })
                         .addOnFailureListener(e ->
                                 tvErr.setText(e.getMessage())
