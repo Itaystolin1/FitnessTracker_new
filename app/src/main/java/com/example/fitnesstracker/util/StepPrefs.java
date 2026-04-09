@@ -8,6 +8,7 @@ import java.util.Date;
 import java.util.Locale;
 
 public class StepPrefs {
+    private static final String KEY_DAILY_PATH = "daily_path";
     private static final String KEY_GOAL_STEPS = "goal_steps";
     private static final String KEY_GOAL_RUN = "goal_run_km";
     private static final String KEY_TODAY_RUN_DIST = "today_run_dist";
@@ -38,6 +39,21 @@ public class StepPrefs {
                     .putLong(KEY_BASELINE, -1)
                     .putLong(KEY_STEPS, 0)
                     .apply();
+        }
+    }
+    // ===== DAILY BREADCRUMB PATH =====
+    public static String getDailyPath(Context c) {
+        return sp(c).getString(KEY_DAILY_PATH, "");
+    }
+
+    public static void addPathPoint(Context c, double lat, double lng) {
+        String current = getDailyPath(c);
+        String newPoint = lat + "," + lng;
+        if (current.isEmpty()) {
+            sp(c).edit().putString(KEY_DAILY_PATH, newPoint).apply();
+        } else {
+            // We use a "|" to separate the coordinates!
+            sp(c).edit().putString(KEY_DAILY_PATH, current + "|" + newPoint).apply();
         }
     }
     // ===== DUAL GOALS =====
@@ -107,5 +123,6 @@ public class StepPrefs {
                 .putLong(KEY_BASELINE, -1)
                 .putLong(KEY_STEPS, 0)
                 .apply();
+        sp(c).edit().putString(KEY_DAILY_PATH, "").apply();
     }
 }

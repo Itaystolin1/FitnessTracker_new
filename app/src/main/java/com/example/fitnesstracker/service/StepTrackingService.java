@@ -55,7 +55,7 @@ public class StepTrackingService extends Service implements SensorEventListener 
     private ArrayList<LatLng> currentPath = new ArrayList<>();
     private static final int NOTIFICATION_ID = 1;
     private static final String CHANNEL_ID = "FitnessTrackerChannel";
-
+    private LocationCallback walkLocationCallback;
     private SensorManager sensorManager;
     private Sensor stepSensor;
     private FusedLocationProviderClient fusedLocationClient;
@@ -108,6 +108,7 @@ public class StepTrackingService extends Service implements SensorEventListener 
     }
 
     private void setupLocationCallback() {
+        // Callback 1: For Running (High Accuracy, every 2 seconds)
         locationCallback = new LocationCallback() {
             @Override
             public void onLocationResult(LocationResult locationResult) {
@@ -115,7 +116,7 @@ public class StepTrackingService extends Service implements SensorEventListener 
                 for (Location location : locationResult.getLocations()) {
                     currentPath.add(new LatLng(location.getLatitude(), location.getLongitude()));
 
-                    // --- THE FIX: REAL GPS DISTANCE MATH ---
+                    // --- REAL GPS DISTANCE MATH ---
                     if (currentMode == MovementMode.RUN) {
                         if (lastRunLocation != null) {
                             // distanceTo returns meters. We divide by 1000 to get kilometers!
@@ -127,6 +128,20 @@ public class StepTrackingService extends Service implements SensorEventListener 
                     }
                 }
                 broadcastUpdates();
+            }
+        };
+
+        // Callback 2: For Walking (Low-Power Breadcrumbs, every 5-10 minutes)
+        walkLocationCallback = new LocationCallback() {
+            @Override
+            public void onLocationResult(LocationResult locationResult) {
+                if (locationResult == null) return;
+                for (Location location : locationResult.getLocations()) {
+                    if (currentMode == MovementMode.WALK) {
+                        StepPrefs.addPathPoint(StepTrackingService.this, location.getLatitude(), location.getLongitude());
+                        broadcastUpdates(); // Tell the map to redraw!
+                    }
+                }
             }
         };
     }
@@ -172,6 +187,7 @@ public class StepTrackingService extends Service implements SensorEventListener 
         timerHandler.removeCallbacks(timerRunnable);
 
         // THE FIX: Forcefully shout the correct steps to the Dashboard immediately so it NEVER shows 0!
+        startLowPowerWalkUpdates();
         broadcastUpdates();
     }
 
@@ -253,12 +269,19 @@ public class StepTrackingService extends Service implements SensorEventListener 
 
         timerHandler.removeCallbacks(timerRunnable);
         unregisterSensors();
-        if (fusedLocationClient != null && locationCallback != null) {
-            fusedLocationClient.removeLocationUpdates(locationCallback);
+
+        // THE FIX: Unregister BOTH antennas cleanly so the battery doesn't drain!
+        if (fusedLocationClient != null) {
+            if (locationCallback != null) {
+                fusedLocationClient.removeLocationUpdates(locationCallback);
+            }
+            if (walkLocationCallback != null) {
+                fusedLocationClient.removeLocationUpdates(walkLocationCallback);
+            }
         }
+
         stopForeground(true);
         stopSelf();
-
     }
 
     private void registerSensors() {
@@ -283,7 +306,18 @@ public class StepTrackingService extends Service implements SensorEventListener 
             e.printStackTrace();
         }
     }
-
+    private void startLowPowerWalkUpdates() {
+        try {
+            // PRIORITY_BALANCED_POWER_ACCURACY = Cell Towers & Wi-Fi only (No Space Satellites!)
+            LocationRequest walkRequest = new LocationRequest.Builder(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 10 * 60 * 1000) // Max once every 10 minutes
+                    .setMinUpdateIntervalMillis(5 * 60 * 1000) // Minimum 5 minutes between pings
+                    .setMinUpdateDistanceMeters(50f) // Must move at least 50 meters to trigger!
+                    .build();
+            fusedLocationClient.requestLocationUpdates(walkRequest, walkLocationCallback, Looper.getMainLooper());
+        } catch (SecurityException e) {
+            e.printStackTrace();
+        }
+    }
     @Override
     public void onSensorChanged(SensorEvent event) {
         if (event.sensor.getType() == Sensor.TYPE_STEP_COUNTER) {
