@@ -41,6 +41,7 @@ public class StepPrefs {
                     .apply();
         }
     }
+
     // ===== DAILY BREADCRUMB PATH =====
     public static String getDailyPath(Context c) {
         return sp(c).getString(KEY_DAILY_PATH, "");

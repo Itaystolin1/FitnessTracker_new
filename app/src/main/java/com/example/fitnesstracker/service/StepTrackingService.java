@@ -119,11 +119,13 @@ public class StepTrackingService extends Service implements SensorEventListener 
                     // --- REAL GPS DISTANCE MATH ---
                     if (currentMode == MovementMode.RUN) {
                         if (lastRunLocation != null) {
-                            // distanceTo returns meters. We divide by 1000 to get kilometers!
                             float distanceInMeters = lastRunLocation.distanceTo(location);
                             runSessionDistance += (distanceInMeters / 1000f);
+
+                            // THE FIX: Scientific Calorie Formula using your existing method!
+                            float weight = StepPrefs.getWeightKg(StepTrackingService.this);
+                            runSessionCalories = (int) (runSessionDistance * weight * 1.036);
                         }
-                        // Save this location so we can compare it to the next one in 2 seconds
                         lastRunLocation = location;
                     }
                 }
@@ -371,7 +373,10 @@ public class StepTrackingService extends Service implements SensorEventListener 
         if (currentMode == MovementMode.WALK) {
             intent.putExtra(EXTRA_STEPS, (int) dailySteps);
             intent.putExtra(EXTRA_DISTANCE, dailySteps * 0.00075f);
-            intent.putExtra(EXTRA_CALORIES, (int)(dailySteps * 0.04));
+
+            float weight = StepPrefs.getWeightKg(this);
+            int dailyCals = (int) (dailySteps * 0.0005f * weight);
+            intent.putExtra(EXTRA_CALORIES, dailyCals);
         } else {
             intent.putExtra(EXTRA_STEPS, runSessionSteps);
             intent.putExtra(EXTRA_DISTANCE, runSessionDistance);
