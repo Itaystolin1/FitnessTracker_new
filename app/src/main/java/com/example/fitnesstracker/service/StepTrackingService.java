@@ -71,7 +71,7 @@ public class StepTrackingService extends Service implements SensorEventListener 
     private int runSessionSteps = 0;
     private float runSessionDistance = 0f;
     private int runSessionCalories = 0;
-
+    private Location lastRunLocation = null; // <-- ADD THIS NEW VARIABLE
     private final Handler timerHandler = new Handler(Looper.getMainLooper());
     private Runnable timerRunnable;
 
@@ -112,6 +112,17 @@ public class StepTrackingService extends Service implements SensorEventListener 
                 if (locationResult == null) return;
                 for (Location location : locationResult.getLocations()) {
                     currentPath.add(new LatLng(location.getLatitude(), location.getLongitude()));
+
+                    // --- THE FIX: REAL GPS DISTANCE MATH ---
+                    if (currentMode == MovementMode.RUN) {
+                        if (lastRunLocation != null) {
+                            // distanceTo returns meters. We divide by 1000 to get kilometers!
+                            float distanceInMeters = lastRunLocation.distanceTo(location);
+                            runSessionDistance += (distanceInMeters / 1000f);
+                        }
+                        // Save this location so we can compare it to the next one in 2 seconds
+                        lastRunLocation = location;
+                    }
                 }
                 broadcastUpdates();
             }
@@ -162,6 +173,8 @@ public class StepTrackingService extends Service implements SensorEventListener 
         runSessionSteps = 0;
         runSessionDistance = 0f;
         runSessionCalories = 0;
+        lastRunLocation = null;
+
 
         if (currentPath != null) {
             currentPath.clear();
@@ -271,8 +284,7 @@ public class StepTrackingService extends Service implements SensorEventListener 
                 if (currentRunSteps > runSessionSteps) {
                     int delta = currentRunSteps - runSessionSteps;
                     runSessionSteps = currentRunSteps;
-                    runSessionDistance += delta * 0.00075f;
-                    runSessionCalories += (int)(delta * 0.04);
+                    runSessionCalories += (int)(delta * 0.06);
                 }
             }
 
