@@ -9,7 +9,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ImageButton;
+import android.widget.Button;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -25,7 +25,10 @@ import java.util.Locale;
 public class ActiveRunFragment extends Fragment {
 
     private TextView tvTimer, tvDistance, tvPace;
-    private ImageButton btnStop;
+    private View llRunControls;
+    private Button btnPauseResume, btnFinish, btnExitRun;
+
+    private boolean isPaused = false;
 
     private final BroadcastReceiver updateReceiver = new BroadcastReceiver() {
         @Override
@@ -61,7 +64,11 @@ public class ActiveRunFragment extends Fragment {
         tvTimer = view.findViewById(R.id.tvTimer);
         tvDistance = view.findViewById(R.id.tvRunDistance);
         tvPace = view.findViewById(R.id.tvRunPace);
-        btnStop = view.findViewById(R.id.btnStop);
+
+        llRunControls = view.findViewById(R.id.llRunControls);
+        btnPauseResume = view.findViewById(R.id.btnPauseResume);
+        btnFinish = view.findViewById(R.id.btnFinish);
+        btnExitRun = view.findViewById(R.id.btnExitRun);
 
         if (getChildFragmentManager().findFragmentById(R.id.mapContainer) == null) {
             getChildFragmentManager().beginTransaction()
@@ -69,32 +76,74 @@ public class ActiveRunFragment extends Fragment {
                     .commit();
         }
 
-        // FIX: Replaced direct stop with a Warning Dialog!
-        btnStop.setOnClickListener(v -> showStopWarning());
+        // Pause / Resume Logic
+        btnPauseResume.setOnClickListener(v -> {
+            Intent serviceIntent = new Intent(requireContext(), StepTrackingService.class);
+            if (isPaused) {
+                serviceIntent.setAction(StepTrackingService.ACTION_RESUME_RUN);
+                btnPauseResume.setText("PAUSE");
+                isPaused = false;
+            } else {
+                serviceIntent.setAction(StepTrackingService.ACTION_PAUSE_RUN);
+                btnPauseResume.setText("RESUME");
+                isPaused = true;
+            }
+            requireContext().startService(serviceIntent);
+        });
+
+        // Finish Logic
+        btnFinish.setOnClickListener(v -> showFinishWarning());
+
+        // Exit Logic
+        btnExitRun.setOnClickListener(v -> {
+            if (getActivity() instanceof MainActivity) {
+                ((MainActivity) getActivity()).navigateToDashboard();
+            }
+        });
 
         startRunSession();
     }
 
-    private void showStopWarning() {
+    private void showFinishWarning() {
         new AlertDialog.Builder(requireContext())
-                .setTitle("Stop Running?")
-                .setMessage("Are you sure you want to stop this run? If you stop, you cannot continue this session.")
-                .setPositiveButton("Stop Run", (dialog, which) -> {
-                    // Stop the service tracking
-                    Intent serviceIntent = new Intent(requireContext(), StepTrackingService.class);
-                    serviceIntent.setAction(StepTrackingService.ACTION_STOP_TRACKING);
-                    requireContext().startService(serviceIntent);
+                .setTitle("End Run")
+                .setMessage("Do you want to save this run to your history, or discard it entirely?")
 
-                    // Navigate back to Dashboard
-                    if (getActivity() instanceof MainActivity) {
-                        ((MainActivity) getActivity()).navigateToDashboard();
-                    }
+                // Option 1: Save
+                .setPositiveButton("Save", (dialog, which) -> {
+                    endRun(true);
                 })
-                .setNegativeButton("Cancel", (dialog, which) -> {
-                    dialog.dismiss(); // Closes dialog, run continues in background!
+
+                // Option 2: Delete/Discard (This uses a red/negative system theme usually)
+                .setNegativeButton("Discard", (dialog, which) -> {
+                    endRun(false);
+                })
+
+                // Option 3: Cancel and go back to the run
+                .setNeutralButton("Keep Running", (dialog, which) -> {
+                    dialog.dismiss();
                 })
                 .setCancelable(false)
                 .show();
+    }
+
+    private void endRun(boolean saveRun) {
+        // 1. Tell the service to Stop (and pass our Save/Discard choice!)
+        Intent serviceIntent = new Intent(requireContext(), StepTrackingService.class);
+        serviceIntent.setAction(StepTrackingService.ACTION_STOP_TRACKING);
+        serviceIntent.putExtra(StepTrackingService.EXTRA_SAVE_RUN, saveRun);
+        requireContext().startService(serviceIntent);
+
+        // 2. Change the UI! Hide controls, show Exit button.
+        llRunControls.setVisibility(View.GONE);
+        btnExitRun.setVisibility(View.VISIBLE);
+
+        // 3. Let the user know what happened
+        if (saveRun) {
+            android.widget.Toast.makeText(getContext(), "Run saved to history!", android.widget.Toast.LENGTH_SHORT).show();
+        } else {
+            android.widget.Toast.makeText(getContext(), "Run discarded.", android.widget.Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void startRunSession() {

@@ -41,7 +41,8 @@ public class StepTrackingService extends Service implements SensorEventListener 
     public static final String ACTION_START_RUN = "ACTION_START_RUN";
     public static final String ACTION_STOP_TRACKING = "ACTION_STOP_TRACKING";
     public static final String ACTION_UPDATE_STATS = "ACTION_UPDATE_STATS";
-
+    public static final String ACTION_PAUSE_RUN = "ACTION_PAUSE_RUN";
+    public static final String ACTION_RESUME_RUN = "ACTION_RESUME_RUN";
     public static final String EXTRA_MODE = "EXTRA_MODE";
     public static final String EXTRA_STEPS = "EXTRA_STEPS";
     public static final String EXTRA_DISTANCE = "EXTRA_DISTANCE";
@@ -49,6 +50,7 @@ public class StepTrackingService extends Service implements SensorEventListener 
     public static final String EXTRA_ELAPSED_TIME = "EXTRA_ELAPSED_TIME";
     public static final String EXTRA_PACE = "EXTRA_PACE";
     public static final String EXTRA_PATH = "EXTRA_PATH";
+    public static final String EXTRA_SAVE_RUN = "EXTRA_SAVE_RUN";
 
     private ArrayList<LatLng> currentPath = new ArrayList<>();
     private static final int NOTIFICATION_ID = 1;
@@ -141,7 +143,14 @@ public class StepTrackingService extends Service implements SensorEventListener 
                     startRunMode();
                     break;
                 case ACTION_STOP_TRACKING:
-                    stopTracking();
+                    boolean save = intent.getBooleanExtra(EXTRA_SAVE_RUN, true);
+                    stopTracking(save);
+                    break;
+                case ACTION_PAUSE_RUN:
+                    pauseRunMode();
+                    break;
+                case ACTION_RESUME_RUN:
+                    resumeRunMode();
                     break;
             }
         }
@@ -191,30 +200,53 @@ public class StepTrackingService extends Service implements SensorEventListener 
         timerHandler.removeCallbacks(timerRunnable);
         timerHandler.post(timerRunnable);
     }
+    private void pauseRunMode() {
+        if (currentMode == MovementMode.RUN) {
+            runTimer.stop();
+            if (fusedLocationClient != null && locationCallback != null) {
+                fusedLocationClient.removeLocationUpdates(locationCallback); // Stop GPS to save battery!
+            }
 
-    private void stopTracking() {
+            NotificationManager manager = getSystemService(NotificationManager.class);
+            if (manager != null) manager.notify(NOTIFICATION_ID, getNotification("Run Paused"));
+        }
+    }
+
+    private void resumeRunMode() {
+        if (currentMode == MovementMode.RUN) {
+            runTimer.start();
+            startLocationUpdates(); // Restart GPS
+
+            // Critical: Reset last location so it doesn't calculate a straight line
+            // from where you paused to where you resumed!
+            lastRunLocation = null;
+        }
+    }
+    private void stopTracking(boolean saveRun) {
         if (currentMode == MovementMode.RUN) {
             runTimer.stop();
 
-            String userId = com.google.firebase.auth.FirebaseAuth.getInstance().getUid();
-            if (userId != null) {
-                String todayDate = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(new java.util.Date());
+            if (saveRun) {
+                String userId = com.google.firebase.auth.FirebaseAuth.getInstance().getUid();
+                if (userId != null) {
+                    String todayDate = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(new java.util.Date());
 
-                com.google.firebase.database.DatabaseReference runRef = com.google.firebase.database.FirebaseDatabase.getInstance()
-                        .getReference("users").child(userId).child("history").child(todayDate).child("runs").push();
+                    com.google.firebase.database.DatabaseReference runRef = com.google.firebase.database.FirebaseDatabase.getInstance()
+                            .getReference("users").child(userId).child("history").child(todayDate).child("runs").push();
 
-                String paceStr = "--:-- /km";
-                if (runSessionDistance > 0.01) {
-                    double totalMinutes = runTimer.getElapsedSeconds() / 60.0;
-                    double paceVal = totalMinutes / runSessionDistance;
-                    int paceMin = (int) paceVal;
-                    int paceSec = (int) ((paceVal - paceMin) * 60);
-                    paceStr = String.format(java.util.Locale.US, "%d:%02d /km", paceMin, paceSec);
+                    String paceStr = "--:-- /km";
+                    if (runSessionDistance > 0.01) {
+                        double totalMinutes = runTimer.getElapsedSeconds() / 60.0;
+                        double paceVal = totalMinutes / runSessionDistance;
+                        int paceMin = (int) paceVal;
+                        int paceSec = (int) ((paceVal - paceMin) * 60);
+                        paceStr = String.format(java.util.Locale.US, "%d:%02d /km", paceMin, paceSec);
+                    }
+
+                    com.example.fitnesstracker.data.model.RunRecord run =
+                            new com.example.fitnesstracker.data.model.RunRecord(runSessionDistance, runSessionCalories, paceStr, runTimer.getFormattedTime());
+                    runRef.setValue(run);
                 }
-
-                com.example.fitnesstracker.data.model.RunRecord run =
-                        new com.example.fitnesstracker.data.model.RunRecord(runSessionDistance, runSessionCalories, paceStr, runTimer.getFormattedTime());
-                runRef.setValue(run);
             }
         }
 
@@ -225,6 +257,7 @@ public class StepTrackingService extends Service implements SensorEventListener 
         }
         stopForeground(true);
         stopSelf();
+
     }
 
     private void registerSensors() {
