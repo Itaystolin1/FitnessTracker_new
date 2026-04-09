@@ -32,14 +32,14 @@ public class RegisterDialogFragment extends DialogFragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        EditText etEmail  = view.findViewById(R.id.etEmail);
-        EditText etPass   = view.findViewById(R.id.etPassword);
+        EditText etEmail = view.findViewById(R.id.etEmail);
+        EditText etPass = view.findViewById(R.id.etPassword);
         EditText etHeight = view.findViewById(R.id.etHeight);
         EditText etWeight = view.findViewById(R.id.etWeight);
-        Spinner spGender  = view.findViewById(R.id.spGender);
+        Spinner spGender = view.findViewById(R.id.spGender);
 
         TextView tvErr = view.findViewById(R.id.tvError);
-        Button btn     = view.findViewById(R.id.btnDoRegister);
+        Button btn = view.findViewById(R.id.btnDoRegister);
 
         // ===== Gender spinner setup =====
         ArrayAdapter<CharSequence> genderAdapter =
@@ -55,74 +55,60 @@ public class RegisterDialogFragment extends DialogFragment {
 
         // ===== Register click =====
         btn.setOnClickListener(v -> {
-            try {
-                String email = etEmail.getText().toString().trim();
-                String pass  = etPass.getText().toString();
+            EditText etUser = view.findViewById(R.id.etUsername);
+            String username = etUser.getText().toString().trim().toLowerCase();
+            String email = etEmail.getText().toString().trim();
+            String pass = etPass.getText().toString();
 
-                float height = Float.parseFloat(etHeight.getText().toString());
-                float weight = Float.parseFloat(etWeight.getText().toString());
-                String gender = spGender.getSelectedItem().toString();
-
-                if (email.isEmpty() || pass.isEmpty()) {
-                    tvErr.setText("Email and password required");
-                    return;
-                }
-
-                if (height < 100 || height > 250) {
-                    tvErr.setText("Invalid height");
-                    return;
-                }
-
-                if (weight < 30 || weight > 300) {
-                    tvErr.setText("Invalid weight");
-                    return;
-                }
-
-                FirebaseAuth.getInstance()
-                        .createUserWithEmailAndPassword(email, pass)
-                        .addOnSuccessListener(r -> {
-                            String uid = FirebaseAuth.getInstance()
-                                    .getCurrentUser()
-                                    .getUid();
-
-                            // Firebase profile
-                            Map<String, Object> user = new HashMap<>();
-                            user.put("email", email);
-                            user.put("heightCm", height);
-                            user.put("weightKg", weight);
-                            user.put("gender", gender);
-                            user.put("createdAt", System.currentTimeMillis());
-
-                            FirebaseDatabase.getInstance().getReference()
-                                    .child("users")
-                                    .child(uid)
-                                    .child("profile")
-                                    .setValue(user);
-
-                            // Local cache
-                            StepPrefs.saveProfile(
-                                    requireContext(),
-                                    height,
-                                    weight,
-                                    gender
-                            );
-
-                            dismiss();
-
-                            // THE FIX: Use a standard Intent to launch MainActivity and close IntroActivity!
-                            Intent intent = new Intent(requireActivity(), MainActivity.class);
-                            startActivity(intent);
-                            requireActivity().finish();
-
-                        })
-                        .addOnFailureListener(e ->
-                                tvErr.setText(e.getMessage())
-                        );
-
-            } catch (Exception e) {
-                tvErr.setText("Please fill all fields correctly");
+            if (username.isEmpty() || email.isEmpty() || pass.isEmpty()) {
+                tvErr.setText("All fields required");
+                return;
             }
+            if (!username.matches("[a-zA-Z0-9_]+")) {
+                tvErr.setText("Username can only use letters, numbers, and underscores");
+                return;
+            }
+
+            // 1. Check if the username is already taken in the database
+            FirebaseDatabase.getInstance().getReference("usernames").child(username)
+                    .get().addOnCompleteListener(task -> {
+                        if (task.isSuccessful() && task.getResult().exists()) {
+                            tvErr.setText("Username is already taken!");
+                        } else {
+                            // 2. If it is available, register them!
+                            registerUser(username, email, pass, etHeight, etWeight, spGender, tvErr);
+                        }
+                    });
         });
+    }
+    private void registerUser(String username, String email, String pass, EditText etHeight, EditText etWeight, Spinner spGender, TextView tvErr) {
+        float height = Float.parseFloat(etHeight.getText().toString());
+        float weight = Float.parseFloat(etWeight.getText().toString());
+        String gender = spGender.getSelectedItem().toString();
+
+        FirebaseAuth.getInstance()
+                .createUserWithEmailAndPassword(email, pass)
+                .addOnSuccessListener(r -> {
+                    String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+
+                    // Save to their personal profile
+                    java.util.Map<String, Object> user = new java.util.HashMap<>();
+                    user.put("username", username);
+                    user.put("email", email);
+                    user.put("heightCm", height);
+                    user.put("weightKg", weight);
+                    user.put("gender", gender);
+                    FirebaseDatabase.getInstance().getReference("users").child(uid).child("profile").setValue(user);
+
+                    // Save to the public "Phonebook" so they can log in later!
+                    FirebaseDatabase.getInstance().getReference("usernames").child(username).setValue(email);
+
+                    StepPrefs.saveProfile(requireContext(), height, weight, gender);
+                    dismiss();
+                    startActivity(new Intent(requireActivity(), MainActivity.class));
+                    requireActivity().finish();
+                })
+                .addOnFailureListener(e -> tvErr.setText(e.getMessage()));
     }
 
     @Override

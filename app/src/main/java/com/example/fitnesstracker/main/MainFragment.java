@@ -260,37 +260,64 @@ public class MainFragment extends Fragment {
     }
 
     private void showEditStepsDialog() {
-        android.widget.EditText input = new android.widget.EditText(requireContext());
-        input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
-        input.setHint("e.g. 10000");
+        android.app.Dialog dialog = new android.app.Dialog(requireContext());
+        dialog.setContentView(R.layout.dialog_edit_goal);
 
-        new android.app.AlertDialog.Builder(requireContext())
-                .setTitle("Daily Step Goal")
-                .setView(input)
-                .setPositiveButton("Save", (dialog, which) -> {
-                    String val = input.getText().toString().trim();
-                    if (!val.isEmpty()) {
-                        com.example.fitnesstracker.util.StepPrefs.setStepGoal(requireContext(), Integer.parseInt(val));
-                        loadCurrentStats();
-                    }
-                }).setNegativeButton("Cancel", null).show();
+        // This makes the ugly default white background invisible so only your curved card shows!
+        dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        dialog.getWindow().setLayout(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+
+        android.widget.TextView tvTitle = dialog.findViewById(R.id.tvDialogTitle);
+        android.widget.EditText etInput = dialog.findViewById(R.id.etDialogInput);
+        android.widget.TextView tvCancel = dialog.findViewById(R.id.tvDialogCancel);
+        android.widget.TextView tvSave = dialog.findViewById(R.id.tvDialogSave);
+
+        tvTitle.setText("Daily Step Goal");
+        etInput.setHint("");
+        etInput.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+
+        tvCancel.setOnClickListener(v -> dialog.dismiss());
+        tvSave.setOnClickListener(v -> {
+            String val = etInput.getText().toString().trim();
+            if (!val.isEmpty()) {
+                com.example.fitnesstracker.util.StepPrefs.setStepGoal(requireContext(), Integer.parseInt(val));
+                loadCurrentStats();
+            }
+            dialog.dismiss();
+        });
+
+        dialog.show();
     }
 
     private void showEditRunDialog() {
-        android.widget.EditText input = new android.widget.EditText(requireContext());
-        input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
-        input.setHint("e.g. 5.5");
+        android.app.Dialog dialog = new android.app.Dialog(requireContext());
+        dialog.setContentView(R.layout.dialog_edit_goal);
 
-        new android.app.AlertDialog.Builder(requireContext())
-                .setTitle("Daily Running Goal (km)")
-                .setView(input)
-                .setPositiveButton("Save", (dialog, which) -> {
-                    String val = input.getText().toString().trim();
-                    if (!val.isEmpty()) {
-                        com.example.fitnesstracker.util.StepPrefs.setRunGoal(requireContext(), Float.parseFloat(val));
-                        loadCurrentStats();
-                    }
-                }).setNegativeButton("Cancel", null).show();
+        // This makes the ugly default white background invisible so only your curved card shows!
+        dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        dialog.getWindow().setLayout(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+
+        android.widget.TextView tvTitle = dialog.findViewById(R.id.tvDialogTitle);
+        android.widget.EditText etInput = dialog.findViewById(R.id.etDialogInput);
+        android.widget.TextView tvCancel = dialog.findViewById(R.id.tvDialogCancel);
+        android.widget.TextView tvSave = dialog.findViewById(R.id.tvDialogSave);
+
+        tvTitle.setText("Daily Running Goal");
+        etInput.setHint("");
+        // Allow decimals for running!
+        etInput.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
+
+        tvCancel.setOnClickListener(v -> dialog.dismiss());
+        tvSave.setOnClickListener(v -> {
+            String val = etInput.getText().toString().trim();
+            if (!val.isEmpty()) {
+                com.example.fitnesstracker.util.StepPrefs.setRunGoal(requireContext(), Float.parseFloat(val));
+                loadCurrentStats();
+            }
+            dialog.dismiss();
+        });
+
+        dialog.show();
     }
 
     @Override
