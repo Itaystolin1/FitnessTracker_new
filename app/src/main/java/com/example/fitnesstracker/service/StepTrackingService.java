@@ -247,6 +247,7 @@ public class StepTrackingService extends Service implements SensorEventListener 
                             new com.example.fitnesstracker.data.model.RunRecord(runSessionDistance, runSessionCalories, paceStr, runTimer.getFormattedTime());
                     runRef.setValue(run);
                 }
+                StepPrefs.addRunDistance(this, runSessionDistance);
             }
         }
 

@@ -8,14 +8,13 @@ import java.util.Date;
 import java.util.Locale;
 
 public class StepPrefs {
-
+    private static final String KEY_GOAL_STEPS = "goal_steps";
+    private static final String KEY_GOAL_RUN = "goal_run_km";
+    private static final String KEY_TODAY_RUN_DIST = "today_run_dist";
     private static final String PREF = "step_prefs";
-
     private static final String KEY_DATE = "date";
     private static final String KEY_BASELINE = "baseline";
     private static final String KEY_STEPS = "steps";
-
-    // Profile
     private static final String KEY_HEIGHT = "height_cm";
     private static final String KEY_WEIGHT = "weight_kg";
     private static final String KEY_GENDER = "gender"; // male / female
@@ -41,7 +40,29 @@ public class StepPrefs {
                     .apply();
         }
     }
+    // ===== DUAL GOALS =====
+    public static int getStepGoal(Context c) {
+        return sp(c).getInt(KEY_GOAL_STEPS, 10000); // Default 10,000
+    }
+    public static void setStepGoal(Context c, int goal) {
+        sp(c).edit().putInt(KEY_GOAL_STEPS, goal).apply();
+    }
 
+    public static float getRunGoal(Context c) {
+        return sp(c).getFloat(KEY_GOAL_RUN, 5.0f); // Default 5.0 km
+    }
+    public static void setRunGoal(Context c, float goal) {
+        sp(c).edit().putFloat(KEY_GOAL_RUN, goal).apply();
+    }
+
+    // ===== TODAY'S RUN TOTAL =====
+    public static float getTodayRunDistance(Context c) {
+        return sp(c).getFloat(KEY_TODAY_RUN_DIST, 0f);
+    }
+    public static void addRunDistance(Context c, float distance) {
+        float current = getTodayRunDistance(c);
+        sp(c).edit().putFloat(KEY_TODAY_RUN_DIST, current + distance).apply();
+    }
     public static long getBaseline(Context c) {
         return sp(c).getLong(KEY_BASELINE, -1);
     }

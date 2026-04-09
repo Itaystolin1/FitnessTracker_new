@@ -34,8 +34,12 @@ import java.util.Locale;
 public class MainFragment extends Fragment {
 
     private TextView tvStepCount, tvDistance, tvCalories, tvDate;
-    private TextView tvGoalProgress;
-    private android.widget.ProgressBar pbGoalProgress;
+
+    // THE FIX: Only the new Dual Goal variables are here!
+    private TextView tvGoalStepsTitle, tvGoalStepsProgress, tvGoalRunTitle, tvGoalRunProgress;
+    private android.widget.ProgressBar pbGoalSteps, pbGoalRun;
+    private ImageButton btnEditGoalSteps, btnEditGoalRun;
+
     private Button btnStartRun;
     private ImageButton btnLogout;
     private SwitchMaterial switchWalkTracking;
@@ -53,11 +57,13 @@ public class MainFragment extends Fragment {
                 int steps = intent.getIntExtra(StepTrackingService.EXTRA_STEPS, 0);
                 tvStepCount.setText(String.valueOf(steps));
 
-                if (pbGoalProgress != null && tvGoalProgress != null) {
-                    pbGoalProgress.setProgress(steps);
-                    int percentage = (int) (((double) steps / 10000) * 100);
+                // --- UPDATE LIVE DUAL GOAL BAR ---
+                if (pbGoalSteps != null && tvGoalStepsProgress != null) {
+                    int stepGoal = com.example.fitnesstracker.util.StepPrefs.getStepGoal(requireContext());
+                    pbGoalSteps.setProgress(steps);
+                    int percentage = (int) (((double) steps / stepGoal) * 100);
                     if (percentage > 100) percentage = 100;
-                    tvGoalProgress.setText("Progress: " + percentage + "%");
+                    tvGoalStepsProgress.setText("Progress: " + percentage + "%");
                 }
             }
             if (intent.hasExtra(StepTrackingService.EXTRA_DISTANCE)) {
@@ -86,17 +92,44 @@ public class MainFragment extends Fragment {
         tvDistance = view.findViewById(R.id.tvDistance);
         tvCalories = view.findViewById(R.id.tvCalories);
 
-        tvGoalProgress = view.findViewById(R.id.tvGoalProgress);
-        pbGoalProgress = view.findViewById(R.id.pbGoalProgress);
+        // BIND DUAL GOALS
+        tvGoalStepsTitle = view.findViewById(R.id.tvGoalStepsTitle);
+        tvGoalStepsProgress = view.findViewById(R.id.tvGoalStepsProgress);
+        pbGoalSteps = view.findViewById(R.id.pbGoalSteps);
+        btnEditGoalSteps = view.findViewById(R.id.btnEditGoalSteps);
+
+        tvGoalRunTitle = view.findViewById(R.id.tvGoalRunTitle);
+        tvGoalRunProgress = view.findViewById(R.id.tvGoalRunProgress);
+        pbGoalRun = view.findViewById(R.id.pbGoalRun);
+        btnEditGoalRun = view.findViewById(R.id.btnEditGoalRun);
 
         btnStartRun = view.findViewById(R.id.btnStartRun);
         btnLogout = view.findViewById(R.id.btnLogout);
         switchWalkTracking = view.findViewById(R.id.switchWalkTracking);
 
-        // SAFELY APPLY COLORS IN JAVA TO PREVENT APP CRASH!
-        pbGoalProgress.setProgressTintList(ColorStateList.valueOf(Color.parseColor("#39FF14")));
-        switchWalkTracking.setThumbTintList(ColorStateList.valueOf(Color.parseColor("#39FF14")));
-        switchWalkTracking.setTrackTintList(ColorStateList.valueOf(Color.parseColor("#8039FF14")));
+        // THE FIX: Safely apply colors only to the NEW progress bars!
+        if (pbGoalSteps != null) pbGoalSteps.setProgressTintList(ColorStateList.valueOf(Color.parseColor("#39FF14")));
+        if (pbGoalRun != null) pbGoalRun.setProgressTintList(ColorStateList.valueOf(Color.parseColor("#39FF14")));
+
+        int[][] states = new int[][] {
+                new int[] {-android.R.attr.state_checked}, // State: OFF
+                new int[] {android.R.attr.state_checked}   // State: ON
+        };
+
+        int[] thumbColors = new int[] {
+                Color.parseColor("#B0BEC5"), // Grey when OFF
+                Color.parseColor("#39FF14")  // Neon when ON
+        };
+
+        int[] trackColors = new int[] {
+                Color.parseColor("#455A64"), // Dark Grey when OFF
+                Color.parseColor("#8039FF14") // Faded Neon when ON
+        };
+
+        switchWalkTracking.setThumbTintList(new ColorStateList(states, thumbColors));
+        switchWalkTracking.setTrackTintList(new ColorStateList(states, trackColors));
+        btnEditGoalSteps.setOnClickListener(v -> showEditStepsDialog());
+        btnEditGoalRun.setOnClickListener(v -> showEditRunDialog());
 
         String today = new SimpleDateFormat("EEEE, MMM d", Locale.getDefault()).format(new Date());
         tvDate.setText(today.toUpperCase());
@@ -139,12 +172,11 @@ public class MainFragment extends Fragment {
         }
 
         loadCurrentStats();
-
-        // Load exactly the last 3 runs!
         loadRecentRuns();
     }
 
     private void loadCurrentStats() {
+        if (getContext() == null) return;
         long currentSteps = com.example.fitnesstracker.util.StepPrefs.getSteps(requireContext());
         float dist = currentSteps * 0.00075f;
         int cals = (int) (currentSteps * 0.04);
@@ -153,19 +185,30 @@ public class MainFragment extends Fragment {
         tvDistance.setText(String.format(Locale.US, "%.2f km", dist));
         tvCalories.setText(String.format(Locale.US, "%d kcal", cals));
 
-        int goalMax = 10000;
-        int progress = (int) currentSteps;
-        int percentage = (int) (((double) progress / goalMax) * 100);
+        // --- DUAL GOAL MATH ---
+        if (pbGoalSteps != null && pbGoalRun != null) {
+            int stepGoal = com.example.fitnesstracker.util.StepPrefs.getStepGoal(requireContext());
+            tvGoalStepsTitle.setText(String.format(Locale.US, "%,d Steps", stepGoal));
+            pbGoalSteps.setMax(stepGoal);
+            int stepProgress = (int) currentSteps;
+            int stepPercentage = (int) (((double) stepProgress / stepGoal) * 100);
+            if (stepPercentage > 100) stepPercentage = 100;
+            pbGoalSteps.setProgress(stepProgress);
+            tvGoalStepsProgress.setText("Progress: " + stepPercentage + "%");
 
-        if (percentage > 100) percentage = 100;
-
-        pbGoalProgress.setProgress(progress);
-        tvGoalProgress.setText("Progress: " + percentage + "%");
+            float runGoal = com.example.fitnesstracker.util.StepPrefs.getRunGoal(requireContext());
+            float currentRunDist = com.example.fitnesstracker.util.StepPrefs.getTodayRunDistance(requireContext());
+            tvGoalRunTitle.setText(String.format(Locale.US, "%.1f km", runGoal));
+            pbGoalRun.setMax((int) (runGoal * 1000)); // Multiply by 1000 to handle decimals smoothly!
+            int runPercentage = (int) ((currentRunDist / runGoal) * 100);
+            if (runPercentage > 100) runPercentage = 100;
+            pbGoalRun.setProgress((int) (currentRunDist * 1000));
+            tvGoalRunProgress.setText("Progress: " + runPercentage + "%");
+        }
     }
 
     private void loadRecentRuns() {
         com.example.fitnesstracker.data.StepHistoryRepository.listenHistory(records -> {
-            // Safely check context to avoid crashes
             if (!isAdded() || getContext() == null || getView() == null) return;
 
             android.widget.LinearLayout runContainer = getView().findViewById(R.id.activityScrollContainer);
@@ -178,9 +221,7 @@ public class MainFragment extends Fragment {
             for (com.example.fitnesstracker.data.model.DayRecord day : records) {
                 if (day.runs != null && !day.runs.isEmpty()) {
                     for (com.example.fitnesstracker.data.model.RunRecord run : day.runs.values()) {
-
                         View cardView = LayoutInflater.from(getContext()).inflate(R.layout.item_recent_run_card, runContainer, false);
-
                         TextView tvDist = cardView.findViewById(R.id.tvCardDist);
                         TextView tvTime = cardView.findViewById(R.id.tvCardTime);
 
@@ -190,13 +231,12 @@ public class MainFragment extends Fragment {
                         runContainer.addView(cardView);
 
                         runCount++;
-                        if (runCount >= 5) break; // Break out if we hit 5 runs
+                        if (runCount >= 5) break;
                     }
                 }
-                if (runCount >= 5) break; // Break out of outer loop if we hit 5 runs
+                if (runCount >= 5) break;
             }
 
-            // If zero runs exist, load the empty state
             if (runCount == 0) {
                 View emptyCard = LayoutInflater.from(getContext()).inflate(R.layout.item_recent_run_card, runContainer, false);
                 TextView tvTitle = emptyCard.findViewById(R.id.tvCardTitle);
@@ -217,6 +257,40 @@ public class MainFragment extends Fragment {
         Intent intent = new Intent(requireContext(), StepTrackingService.class);
         intent.setAction(StepTrackingService.ACTION_START_WALK);
         requireContext().startService(intent);
+    }
+
+    private void showEditStepsDialog() {
+        android.widget.EditText input = new android.widget.EditText(requireContext());
+        input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        input.setHint("e.g. 10000");
+
+        new android.app.AlertDialog.Builder(requireContext())
+                .setTitle("Daily Step Goal")
+                .setView(input)
+                .setPositiveButton("Save", (dialog, which) -> {
+                    String val = input.getText().toString().trim();
+                    if (!val.isEmpty()) {
+                        com.example.fitnesstracker.util.StepPrefs.setStepGoal(requireContext(), Integer.parseInt(val));
+                        loadCurrentStats();
+                    }
+                }).setNegativeButton("Cancel", null).show();
+    }
+
+    private void showEditRunDialog() {
+        android.widget.EditText input = new android.widget.EditText(requireContext());
+        input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        input.setHint("e.g. 5.5");
+
+        new android.app.AlertDialog.Builder(requireContext())
+                .setTitle("Daily Running Goal (km)")
+                .setView(input)
+                .setPositiveButton("Save", (dialog, which) -> {
+                    String val = input.getText().toString().trim();
+                    if (!val.isEmpty()) {
+                        com.example.fitnesstracker.util.StepPrefs.setRunGoal(requireContext(), Float.parseFloat(val));
+                        loadCurrentStats();
+                    }
+                }).setNegativeButton("Cancel", null).show();
     }
 
     @Override
