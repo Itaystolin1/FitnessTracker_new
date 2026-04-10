@@ -62,20 +62,20 @@ public class HistoryFragment extends Fragment {
         String userId = FirebaseAuth.getInstance().getUid();
         if (userId == null) return;
 
-        String todayDate = new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
-
-        // Grab the exact steps you've taken today directly from the local memory
         long liveSteps = StepPrefs.getSteps(requireContext());
 
-        DatabaseReference summaryRef = FirebaseDatabase.getInstance()
-                .getReference("users").child(userId).child("history").child(todayDate).child("summary");
+        // FIX: Only sync to Firebase if you have ACTUALLY taken steps!
+        if (liveSteps > 0) {
+            String todayDate = new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
+            DatabaseReference summaryRef = FirebaseDatabase.getInstance()
+                    .getReference("users").child(userId).child("history").child(todayDate).child("summary");
 
-        // Calculate distance and calories based on the pure background walk
-        float distance = liveSteps * 0.00075f;
-        int calories = (int) (liveSteps * 0.04);
+            float distance = liveSteps * 0.00075f;
+            int calories = (int) (liveSteps * 0.04);
 
-        DaySummary summary = new DaySummary(todayDate, (int) liveSteps, distance, calories);
-        summaryRef.setValue(summary); // Boom! Firebase is instantly up to date.
+            DaySummary summary = new DaySummary(todayDate, (int) liveSteps, distance, calories);
+            summaryRef.setValue(summary);
+        }
     }
 
     private void loadHistory() {

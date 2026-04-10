@@ -18,7 +18,6 @@ public class StepHistoryRepository {
         String uid = FirebaseAuth.getInstance().getUid();
         if (uid == null) return;
 
-        // THE FIX: Pointing to the new "history" folder!
         FirebaseDatabase.getInstance()
                 .getReference("users")
                 .child(uid)
@@ -30,14 +29,24 @@ public class StepHistoryRepository {
                         List<DayRecord> list = new ArrayList<>();
 
                         for (DataSnapshot day : snapshot.getChildren()) {
-                            // Firebase magically parses the nested summary AND the list of runs!
                             DayRecord record = day.getValue(DayRecord.class);
-                            if (record != null && record.summary != null) {
-                                list.add(record);
+                            if (record != null) {
+
+                                // FIX: If they did a run but 0 background steps, create a dummy summary so the Date and 0s show up!
+                                if (record.summary == null && record.runs != null && !record.runs.isEmpty()) {
+                                    record.summary = new com.example.fitnesstracker.data.model.DaySummary(day.getKey(), 0, 0f, 0);
+                                }
+
+                                // FIX: Filter out completely empty days
+                                boolean hasSteps = record.summary != null && record.summary.walkSteps > 0;
+                                boolean hasRuns = record.runs != null && !record.runs.isEmpty();
+
+                                if (hasSteps || hasRuns) {
+                                    list.add(record);
+                                }
                             }
                         }
 
-                        // Show the newest days at the top
                         Collections.reverse(list);
                         listener.onData(list);
                     }

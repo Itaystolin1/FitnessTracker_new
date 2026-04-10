@@ -35,20 +35,14 @@ import com.google.android.gms.maps.model.LatLng;
 import java.util.ArrayList;
 import java.util.Locale;
 
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.FirebaseDatabase;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-
-//git check
 public class StepTrackingService extends Service implements SensorEventListener {
 
     public static final String ACTION_START_WALK = "ACTION_START_WALK";
     public static final String ACTION_START_RUN = "ACTION_START_RUN";
     public static final String ACTION_STOP_TRACKING = "ACTION_STOP_TRACKING";
     public static final String ACTION_UPDATE_STATS = "ACTION_UPDATE_STATS";
-
+    public static final String ACTION_PAUSE_RUN = "ACTION_PAUSE_RUN";
+    public static final String ACTION_RESUME_RUN = "ACTION_RESUME_RUN";
     public static final String EXTRA_MODE = "EXTRA_MODE";
     public static final String EXTRA_STEPS = "EXTRA_STEPS";
     public static final String EXTRA_DISTANCE = "EXTRA_DISTANCE";
@@ -56,11 +50,12 @@ public class StepTrackingService extends Service implements SensorEventListener 
     public static final String EXTRA_ELAPSED_TIME = "EXTRA_ELAPSED_TIME";
     public static final String EXTRA_PACE = "EXTRA_PACE";
     public static final String EXTRA_PATH = "EXTRA_PATH";
+    public static final String EXTRA_SAVE_RUN = "EXTRA_SAVE_RUN";
 
     private ArrayList<LatLng> currentPath = new ArrayList<>();
     private static final int NOTIFICATION_ID = 1;
     private static final String CHANNEL_ID = "FitnessTrackerChannel";
-
+    private LocationCallback walkLocationCallback;
     private SensorManager sensorManager;
     private Sensor stepSensor;
     private FusedLocationProviderClient fusedLocationClient;
@@ -78,8 +73,7 @@ public class StepTrackingService extends Service implements SensorEventListener 
     private int runSessionSteps = 0;
     private float runSessionDistance = 0f;
     private int runSessionCalories = 0;
-
-    // THE FIX: Create a global Handler and Runnable we can control and kill!
+    private Location lastRunLocation = null; // <-- ADD THIS NEW VARIABLE
     private final Handler timerHandler = new Handler(Looper.getMainLooper());
     private Runnable timerRunnable;
 
@@ -102,7 +96,6 @@ public class StepTrackingService extends Service implements SensorEventListener 
         dailyBaseline = StepPrefs.getBaseline(this);
         dailySteps = StepPrefs.getSteps(this);
 
-        // THE FIX: Define the loop here, but don't start it yet
         timerRunnable = new Runnable() {
             @Override
             public void run() {
@@ -115,14 +108,42 @@ public class StepTrackingService extends Service implements SensorEventListener 
     }
 
     private void setupLocationCallback() {
+        // Callback 1: For Running (High Accuracy, every 2 seconds)
         locationCallback = new LocationCallback() {
             @Override
             public void onLocationResult(LocationResult locationResult) {
                 if (locationResult == null) return;
                 for (Location location : locationResult.getLocations()) {
                     currentPath.add(new LatLng(location.getLatitude(), location.getLongitude()));
+
+                    // --- REAL GPS DISTANCE MATH ---
+                    if (currentMode == MovementMode.RUN) {
+                        if (lastRunLocation != null) {
+                            float distanceInMeters = lastRunLocation.distanceTo(location);
+                            runSessionDistance += (distanceInMeters / 1000f);
+
+                            // THE FIX: Scientific Calorie Formula using your existing method!
+                            float weight = StepPrefs.getWeightKg(StepTrackingService.this);
+                            runSessionCalories = (int) (runSessionDistance * weight * 1.036);
+                        }
+                        lastRunLocation = location;
+                    }
                 }
                 broadcastUpdates();
+            }
+        };
+
+        // Callback 2: For Walking (Low-Power Breadcrumbs, every 5-10 minutes)
+        walkLocationCallback = new LocationCallback() {
+            @Override
+            public void onLocationResult(LocationResult locationResult) {
+                if (locationResult == null) return;
+                for (Location location : locationResult.getLocations()) {
+                    if (currentMode == MovementMode.WALK) {
+                        StepPrefs.addPathPoint(StepTrackingService.this, location.getLatitude(), location.getLongitude());
+                        broadcastUpdates(); // Tell the map to redraw!
+                    }
+                }
             }
         };
     }
@@ -139,7 +160,14 @@ public class StepTrackingService extends Service implements SensorEventListener 
                     startRunMode();
                     break;
                 case ACTION_STOP_TRACKING:
-                    stopTracking();
+                    boolean save = intent.getBooleanExtra(EXTRA_SAVE_RUN, true);
+                    stopTracking(save);
+                    break;
+                case ACTION_PAUSE_RUN:
+                    pauseRunMode();
+                    break;
+                case ACTION_RESUME_RUN:
+                    resumeRunMode();
                     break;
             }
         }
@@ -148,12 +176,21 @@ public class StepTrackingService extends Service implements SensorEventListener 
 
     private void startWalkMode() {
         currentMode = MovementMode.WALK;
+
+        // THE FIX: Instantly sync the service's temporary memory with your phone's deep memory!
+        StepPrefs.ensureToday(this);
+        dailyBaseline = StepPrefs.getBaseline(this);
+        dailySteps = StepPrefs.getSteps(this);
+
         startForeground(NOTIFICATION_ID, getNotification("Tracking Walk"));
         registerSensors();
         currentPath.clear();
 
-        // THE FIX: Kill any leftover run loop when starting walk mode
         timerHandler.removeCallbacks(timerRunnable);
+
+        // THE FIX: Forcefully shout the correct steps to the Dashboard immediately so it NEVER shows 0!
+        startLowPowerWalkUpdates();
+        broadcastUpdates();
     }
 
     private void startRunMode() {
@@ -163,6 +200,8 @@ public class StepTrackingService extends Service implements SensorEventListener 
         runSessionSteps = 0;
         runSessionDistance = 0f;
         runSessionCalories = 0;
+        lastRunLocation = null;
+
 
         if (currentPath != null) {
             currentPath.clear();
@@ -176,46 +215,73 @@ public class StepTrackingService extends Service implements SensorEventListener 
         registerSensors();
         startLocationUpdates();
 
-        // THE FIX: Kill any zombie loops, then start exactly ONE clean loop
         timerHandler.removeCallbacks(timerRunnable);
         timerHandler.post(timerRunnable);
     }
+    private void pauseRunMode() {
+        if (currentMode == MovementMode.RUN) {
+            runTimer.stop();
+            if (fusedLocationClient != null && locationCallback != null) {
+                fusedLocationClient.removeLocationUpdates(locationCallback); // Stop GPS to save battery!
+            }
 
-    private void stopTracking() {
+            NotificationManager manager = getSystemService(NotificationManager.class);
+            if (manager != null) manager.notify(NOTIFICATION_ID, getNotification("Run Paused"));
+        }
+    }
+
+    private void resumeRunMode() {
+        if (currentMode == MovementMode.RUN) {
+            runTimer.start();
+            startLocationUpdates(); // Restart GPS
+
+            // Critical: Reset last location so it doesn't calculate a straight line
+            // from where you paused to where you resumed!
+            lastRunLocation = null;
+        }
+    }
+    private void stopTracking(boolean saveRun) {
         if (currentMode == MovementMode.RUN) {
             runTimer.stop();
 
-            // --- SAVE ONLY THE RUN TO HISTORY ---
-            String userId = com.google.firebase.auth.FirebaseAuth.getInstance().getUid();
-            if (userId != null) {
-                String todayDate = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(new java.util.Date());
+            if (saveRun) {
+                String userId = com.google.firebase.auth.FirebaseAuth.getInstance().getUid();
+                if (userId != null) {
+                    String todayDate = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(new java.util.Date());
 
-                // Point to today's "runs" folder
-                com.google.firebase.database.DatabaseReference runRef = com.google.firebase.database.FirebaseDatabase.getInstance()
-                        .getReference("users").child(userId).child("history").child(todayDate).child("runs").push();
+                    com.google.firebase.database.DatabaseReference runRef = com.google.firebase.database.FirebaseDatabase.getInstance()
+                            .getReference("users").child(userId).child("history").child(todayDate).child("runs").push();
 
-                // Calculate Pace for the save file
-                String paceStr = "--:-- /km";
-                if (runSessionDistance > 0.01) {
-                    double totalMinutes = runTimer.getElapsedSeconds() / 60.0;
-                    double paceVal = totalMinutes / runSessionDistance;
-                    int paceMin = (int) paceVal;
-                    int paceSec = (int) ((paceVal - paceMin) * 60);
-                    paceStr = String.format(java.util.Locale.US, "%d:%02d /km", paceMin, paceSec);
+                    String paceStr = "--:-- /km";
+                    if (runSessionDistance > 0.01) {
+                        double totalMinutes = runTimer.getElapsedSeconds() / 60.0;
+                        double paceVal = totalMinutes / runSessionDistance;
+                        int paceMin = (int) paceVal;
+                        int paceSec = (int) ((paceVal - paceMin) * 60);
+                        paceStr = String.format(java.util.Locale.US, "%d:%02d /km", paceMin, paceSec);
+                    }
+
+                    com.example.fitnesstracker.data.model.RunRecord run =
+                            new com.example.fitnesstracker.data.model.RunRecord(runSessionDistance, runSessionCalories, paceStr, runTimer.getFormattedTime());
+                    runRef.setValue(run);
                 }
-
-                // Push the RunRecord to Firebase
-                com.example.fitnesstracker.data.model.RunRecord run =
-                        new com.example.fitnesstracker.data.model.RunRecord(runSessionDistance, runSessionCalories, paceStr, runTimer.getFormattedTime());
-                runRef.setValue(run);
+                StepPrefs.addRunDistance(this, runSessionDistance);
             }
         }
 
         timerHandler.removeCallbacks(timerRunnable);
         unregisterSensors();
-        if (fusedLocationClient != null && locationCallback != null) {
-            fusedLocationClient.removeLocationUpdates(locationCallback);
+
+        // THE FIX: Unregister BOTH antennas cleanly so the battery doesn't drain!
+        if (fusedLocationClient != null) {
+            if (locationCallback != null) {
+                fusedLocationClient.removeLocationUpdates(locationCallback);
+            }
+            if (walkLocationCallback != null) {
+                fusedLocationClient.removeLocationUpdates(walkLocationCallback);
+            }
         }
+
         stopForeground(true);
         stopSelf();
     }
@@ -242,7 +308,18 @@ public class StepTrackingService extends Service implements SensorEventListener 
             e.printStackTrace();
         }
     }
-
+    private void startLowPowerWalkUpdates() {
+        try {
+            // PRIORITY_BALANCED_POWER_ACCURACY = Cell Towers & Wi-Fi only (No Space Satellites!)
+            LocationRequest walkRequest = new LocationRequest.Builder(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 10 * 60 * 1000) // Max once every 10 minutes
+                    .setMinUpdateIntervalMillis(5 * 60 * 1000) // Minimum 5 minutes between pings
+                    .setMinUpdateDistanceMeters(50f) // Must move at least 50 meters to trigger!
+                    .build();
+            fusedLocationClient.requestLocationUpdates(walkRequest, walkLocationCallback, Looper.getMainLooper());
+        } catch (SecurityException e) {
+            e.printStackTrace();
+        }
+    }
     @Override
     public void onSensorChanged(SensorEvent event) {
         if (event.sensor.getType() == Sensor.TYPE_STEP_COUNTER) {
@@ -277,8 +354,7 @@ public class StepTrackingService extends Service implements SensorEventListener 
                 if (currentRunSteps > runSessionSteps) {
                     int delta = currentRunSteps - runSessionSteps;
                     runSessionSteps = currentRunSteps;
-                    runSessionDistance += delta * 0.00075f;
-                    runSessionCalories += (int)(delta * 0.04);
+                    runSessionCalories += (int)(delta * 0.06);
                 }
             }
 
@@ -297,7 +373,10 @@ public class StepTrackingService extends Service implements SensorEventListener 
         if (currentMode == MovementMode.WALK) {
             intent.putExtra(EXTRA_STEPS, (int) dailySteps);
             intent.putExtra(EXTRA_DISTANCE, dailySteps * 0.00075f);
-            intent.putExtra(EXTRA_CALORIES, (int)(dailySteps * 0.04));
+
+            float weight = StepPrefs.getWeightKg(this);
+            int dailyCals = (int) (dailySteps * 0.0005f * weight);
+            intent.putExtra(EXTRA_CALORIES, dailyCals);
         } else {
             intent.putExtra(EXTRA_STEPS, runSessionSteps);
             intent.putExtra(EXTRA_DISTANCE, runSessionDistance);
@@ -352,7 +431,6 @@ public class StepTrackingService extends Service implements SensorEventListener 
         }
     }
 
-    // THE FIX: Cleanup everything if Android destroys the service
     @Override
     public void onDestroy() {
         super.onDestroy();

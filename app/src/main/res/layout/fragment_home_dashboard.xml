@@ -3,18 +3,17 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background_dark"
-    android:padding="16dp">
+    android:background="#121212">
 
-    <!-- Header / Logout -->
     <TextView
         android:id="@+id/tvDate"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="TODAY"
-        android:textColor="@color/text_secondary_dark"
-        android:letterSpacing="0.15"
-        android:textSize="14sp"
+        android:layout_marginStart="24dp"
+        android:layout_marginTop="40dp"
+        android:text="MONDAY, OCT 12"
+        android:textColor="#39FF14"
+        android:textSize="18sp"
         android:textStyle="bold"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
@@ -23,144 +22,188 @@
         android:id="@+id/btnLogout"
         android:layout_width="48dp"
         android:layout_height="48dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="32dp"
         android:background="?attr/selectableItemBackgroundBorderless"
-        android:src="@android:drawable/ic_lock_power_off"
-        app:tint="@color/neon_error"
+        android:src="@android:drawable/ic_menu_close_clear_cancel"
+        app:tint="#FF3333"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <TextView
-        android:id="@+id/tvGreeting"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Keep Moving"
-        android:textColor="@color/text_primary_dark"
-        android:textSize="28sp"
-        android:textStyle="bold"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/tvDate" />
-
-    <!-- Walking Toggle Switch -->
-    <com.google.android.material.switchmaterial.SwitchMaterial
-        android:id="@+id/switchWalkTracking"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Tracking Active"
-        android:textColor="@color/text_secondary_dark"
-        android:checked="true"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/btnLogout" />
-
-    <!-- Main Stats Card (Steps) -->
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/cardSteps"
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="0dp"
         android:layout_marginTop="16dp"
-        android:background="@drawable/bg_card_dark"
-        android:padding="32dp"
-        app:layout_constraintTop_toBottomOf="@+id/switchWalkTracking">
-
-        <TextView
-            android:id="@+id/lblSteps"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="DAILY STEPS"
-            android:textColor="@color/text_secondary_dark"
-            android:textSize="12sp"
-            android:letterSpacing="0.2"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
-
-        <TextView
-            android:id="@+id/tvStepCount"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="0"
-            android:textColor="@color/neon_green"
-            android:textSize="64sp"
-            android:fontFamily="sans-serif-condensed-medium"
-            android:includeFontPadding="false"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/lblSteps" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:layout_marginBottom="12dp"
-            android:text="steps"
-            android:textColor="@color/text_secondary_dark"
-            android:textSize="16sp"
-            app:layout_constraintBottom_toBottomOf="@+id/tvStepCount"
-            app:layout_constraintStart_toEndOf="@+id/tvStepCount" />
+        app:layout_constraintTop_toBottomOf="@+id/tvDate"
+        app:layout_constraintBottom_toBottomOf="parent">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:orientation="horizontal"
-            app:layout_constraintTop_toBottomOf="@+id/tvStepCount">
+            android:orientation="vertical"
+            android:paddingBottom="32dp">
 
-            <LinearLayout
-                android:layout_width="0dp"
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
-                <TextView
-                    android:text="DISTANCE"
-                    android:textColor="@color/text_secondary_dark"
-                    android:textSize="10sp"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"/>
-                <TextView
-                    android:id="@+id/tvDistance"
-                    android:text="0.0 km"
-                    android:textColor="@color/text_primary_dark"
-                    android:textSize="20sp"
-                    android:textStyle="bold"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"/>
-            </LinearLayout>
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="16dp"
+                app:cardBackgroundColor="#1E1E1E"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="8dp">
 
-            <LinearLayout
-                android:layout_width="0dp"
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:padding="24dp">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:gravity="center">
+                        <TextView android:text="STEPS" android:textColor="#888888" android:textSize="12sp" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+                        <TextView android:id="@+id/tvStepCount" android:text="0" android:textColor="#FFFFFF" android:textSize="24sp" android:textStyle="bold" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:gravity="center">
+                        <TextView android:text="DISTANCE" android:textColor="#888888" android:textSize="12sp" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+                        <TextView android:id="@+id/tvDistance" android:text="0.0 km" android:textColor="#FFFFFF" android:textSize="24sp" android:textStyle="bold" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:gravity="center">
+                        <TextView android:text="CALORIES" android:textColor="#888888" android:textSize="12sp" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+                        <TextView android:id="@+id/tvCalories" android:text="0 kcal" android:textColor="#FFFFFF" android:textSize="24sp" android:textStyle="bold" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+                    </LinearLayout>
+
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
-                <TextView
-                    android:text="CALORIES"
-                    android:textColor="@color/text_secondary_dark"
-                    android:textSize="10sp"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginBottom="32dp"
+                app:cardBackgroundColor="#1E1E1E"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="8dp">
+
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="16dp">
+
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/switchWalkTracking"
+                        android:text="Daily Tracking"
+                        android:textColor="#FFFFFF"
+                        android:textSize="16sp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_centerVertical="true" />
+
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/btnStartRun"
+                        android:text="START RUN"
+                        android:background="@drawable/btn_neon_primary"
+                        android:textColor="#000000"
+                        android:textStyle="bold"
+                        android:layout_width="wrap_content"
+                        android:layout_height="40dp"
+                        android:paddingHorizontal="16dp"
+                        android:layout_alignParentEnd="true"
+                        android:layout_centerVertical="true" />
+                </RelativeLayout>
+            </androidx.cardview.widget.CardView>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="24dp"
+                android:text="Recent Tracks"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/activityScrollContainer"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"/>
-                <TextView
-                    android:id="@+id/tvCalories"
-                    android:text="0 kcal"
-                    android:textColor="@color/text_primary_dark"
-                    android:textSize="20sp"
-                    android:textStyle="bold"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"/>
-            </LinearLayout>
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="16dp">
+                </LinearLayout>
+            </HorizontalScrollView>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="24dp"
+                android:layout_marginTop="24dp"
+                android:text="Active Goals"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="16dp"
+                app:cardBackgroundColor="#1E1E1E"
+                app:cardCornerRadius="16dp">
+
+                <LinearLayout
+                    android:orientation="vertical"
+                    android:padding="16dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content">
+                        <LinearLayout android:id="@+id/llGoalStepsInfo" android:orientation="vertical" android:layout_width="wrap_content" android:layout_height="wrap_content">
+                            <TextView android:text="DAILY STEPS" android:textColor="#39FF14" android:textSize="10sp" android:textStyle="bold" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+                            <TextView android:id="@+id/tvGoalStepsTitle" android:text="10,000 Steps" android:textColor="#FFFFFF" android:textStyle="bold" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+                            <TextView android:id="@+id/tvGoalStepsProgress" android:text="Progress: 0%" android:textColor="#888888" android:layout_marginTop="4dp" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+                        </LinearLayout>
+                        <ImageButton android:id="@+id/btnEditGoalSteps" android:layout_width="40dp" android:layout_height="40dp" android:layout_alignParentEnd="true" android:background="?attr/selectableItemBackgroundBorderless" android:src="@android:drawable/ic_menu_edit" app:tint="#888888" />
+
+                        <ProgressBar android:id="@+id/pbGoalSteps" style="@android:style/Widget.ProgressBar.Horizontal" android:progress="0" android:max="10000" android:layout_marginTop="8dp" android:layout_below="@+id/llGoalStepsInfo" android:layout_width="match_parent" android:layout_height="wrap_content"/>
+                    </RelativeLayout>
+
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#333333" android:layout_marginVertical="16dp"/>
+
+                    <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content">
+                        <LinearLayout android:id="@+id/llGoalRunInfo" android:orientation="vertical" android:layout_width="wrap_content" android:layout_height="wrap_content">
+                            <TextView android:text="DAILY RUN" android:textColor="#39FF14" android:textSize="10sp" android:textStyle="bold" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+                            <TextView android:id="@+id/tvGoalRunTitle" android:text="5.0 km" android:textColor="#FFFFFF" android:textStyle="bold" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+                            <TextView android:id="@+id/tvGoalRunProgress" android:text="Progress: 0%" android:textColor="#888888" android:layout_marginTop="4dp" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+                        </LinearLayout>
+                        <ImageButton android:id="@+id/btnEditGoalRun" android:layout_width="40dp" android:layout_height="40dp" android:layout_alignParentEnd="true" android:background="?attr/selectableItemBackgroundBorderless" android:src="@android:drawable/ic_menu_edit" app:tint="#888888" />
+
+                        <ProgressBar android:id="@+id/pbGoalRun" style="@android:style/Widget.ProgressBar.Horizontal" android:progress="0" android:max="5000" android:layout_marginTop="8dp" android:layout_below="@+id/llGoalRunInfo" android:layout_width="match_parent" android:layout_height="wrap_content"/>
+                    </RelativeLayout>
+
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
         </LinearLayout>
-    </androidx.constraintlayout.widget.ConstraintLayout>
-
-    <!-- Start Running Button with Stick Man -->
-    <androidx.appcompat.widget.AppCompatButton
-        android:id="@+id/btnStartRun"
-        android:layout_width="match_parent"
-        android:layout_height="72dp"
-        android:layout_marginTop="24dp"
-        android:background="@drawable/btn_neon_primary"
-        android:text="START RUNNING"
-        android:letterSpacing="0.1"
-        android:textColor="@color/background_dark"
-        android:textSize="20sp"
-        android:textStyle="bold"
-        android:drawableEnd="@drawable/ic_run_stickman"
-        android:paddingEnd="24dp"
-        app:layout_constraintTop_toBottomOf="@+id/cardSteps" />
+    </androidx.core.widget.NestedScrollView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
