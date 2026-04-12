@@ -13,6 +13,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
@@ -20,6 +21,7 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import com.example.fitnesstracker.IntroActivity;
+
 import com.example.fitnesstracker.MainActivity;
 import com.example.fitnesstracker.R;
 import com.example.fitnesstracker.data.model.MovementMode;
@@ -41,7 +43,7 @@ public class MainFragment extends Fragment {
     private ImageButton btnEditGoalSteps, btnEditGoalRun;
 
     private Button btnStartRun;
-    private ImageButton btnLogout;
+    private ImageView ivDashboardAvatar;
     private SwitchMaterial switchWalkTracking;
 
     private static final String PREF_TRACKER = "TrackerPrefs";
@@ -97,6 +99,7 @@ public class MainFragment extends Fragment {
         tvGoalStepsProgress = view.findViewById(R.id.tvGoalStepsProgress);
         pbGoalSteps = view.findViewById(R.id.pbGoalSteps);
         btnEditGoalSteps = view.findViewById(R.id.btnEditGoalSteps);
+        ivDashboardAvatar = view.findViewById(R.id.ivDashboardAvatar);
 
         tvGoalRunTitle = view.findViewById(R.id.tvGoalRunTitle);
         tvGoalRunProgress = view.findViewById(R.id.tvGoalRunProgress);
@@ -104,7 +107,6 @@ public class MainFragment extends Fragment {
         btnEditGoalRun = view.findViewById(R.id.btnEditGoalRun);
 
         btnStartRun = view.findViewById(R.id.btnStartRun);
-        btnLogout = view.findViewById(R.id.btnLogout);
         switchWalkTracking = view.findViewById(R.id.switchWalkTracking);
 
         // THE FIX: Safely apply colors only to the NEW progress bars!
@@ -145,11 +147,9 @@ public class MainFragment extends Fragment {
             }
         });
 
-        btnLogout.setOnClickListener(v -> {
-            FirebaseAuth.getInstance().signOut();
-            Intent intent = new Intent(requireContext(), IntroActivity.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            startActivity(intent);
+        ivDashboardAvatar.setOnClickListener(v -> {
+            ProfileDialogFragment dialog = new ProfileDialogFragment();
+            dialog.show(getParentFragmentManager(), "ProfileDialog");
         });
 
         switchWalkTracking.setOnCheckedChangeListener((buttonView, isChecked) -> {
@@ -326,6 +326,21 @@ public class MainFragment extends Fragment {
         LocalBroadcastManager.getInstance(requireContext())
                 .registerReceiver(statsReceiver, new IntentFilter(StepTrackingService.ACTION_UPDATE_STATS));
         loadCurrentStats();
+
+        String savedUri = com.example.fitnesstracker.util.StepPrefs.getProfilePicUri(requireContext());
+
+        // POISON PILL FIX: Delete old expired temporary URIs
+        if (savedUri.startsWith("content://")) {
+            com.example.fitnesstracker.util.StepPrefs.setProfilePicUri(requireContext(), "");
+            savedUri = "";
+        }
+
+        if (!savedUri.isEmpty() && ivDashboardAvatar != null) {
+            java.io.File imgFile = new java.io.File(savedUri);
+            if (imgFile.exists()) {
+                ivDashboardAvatar.setImageURI(android.net.Uri.fromFile(imgFile));
+            }
+        }
     }
 
     @Override

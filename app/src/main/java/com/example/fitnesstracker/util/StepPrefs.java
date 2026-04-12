@@ -8,6 +8,8 @@ import java.util.Date;
 import java.util.Locale;
 
 public class StepPrefs {
+    private static final String KEY_PROFILE_PIC = "profile_pic_uri";
+    private static final String KEY_DARK_MODE = "dark_mode";
     private static final String KEY_DAILY_PATH = "daily_path";
     private static final String KEY_GOAL_STEPS = "goal_steps";
     private static final String KEY_GOAL_RUN = "goal_run_km";
@@ -41,7 +43,20 @@ public class StepPrefs {
                     .apply();
         }
     }
+    // ===== NEW PROFILE FEATURES =====
+    public static String getProfilePicUri(Context c) {
+        return sp(c).getString(KEY_PROFILE_PIC, "");
+    }
+    public static void setProfilePicUri(Context c, String uri) {
+        sp(c).edit().putString(KEY_PROFILE_PIC, uri).apply();
+    }
 
+    public static boolean isDarkMode(Context c) {
+        return sp(c).getBoolean(KEY_DARK_MODE, true); // True is your default theme
+    }
+    public static void setDarkMode(Context c, boolean isDark) {
+        sp(c).edit().putBoolean(KEY_DARK_MODE, isDark).apply();
+    }
     // ===== DAILY BREADCRUMB PATH =====
     public static String getDailyPath(Context c) {
         return sp(c).getString(KEY_DAILY_PATH, "");
