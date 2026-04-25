@@ -103,7 +103,6 @@ public class ProfileDialogFragment extends DialogFragment {
         TextView tvProfileEmail = view.findViewById(R.id.tvProfileEmail);
         TextView tvProfileWeight = view.findViewById(R.id.tvProfileWeight);
         TextView tvProfileHeight = view.findViewById(R.id.tvProfileHeight);
-        SwitchMaterial switchTheme = view.findViewById(R.id.switchTheme);
         Button btnProfileClose = view.findViewById(R.id.btnProfileClose);
         Button btnProfileLogout = view.findViewById(R.id.btnProfileLogout);
 
@@ -149,29 +148,6 @@ public class ProfileDialogFragment extends DialogFragment {
                 }
             });
         }
-
-        // Theme Setup
-        TextView tvThemeLabel = view.findViewById(R.id.tvThemeLabel);
-        boolean isDark = StepPrefs.isDarkMode(requireContext());
-
-        // Set initial state
-        switchTheme.setChecked(isDark);
-        tvThemeLabel.setText(isDark ? "Dark Mode" : "Light Mode");
-
-        // Listen for user toggling the switch
-        switchTheme.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            StepPrefs.setDarkMode(requireContext(), isChecked);
-
-            // Instantly change the text
-            tvThemeLabel.setText(isChecked ? "Dark Mode" : "Light Mode");
-
-            // Apply the theme to the whole app
-            if (isChecked) {
-                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
-            } else {
-                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
-            }
-        });
 
         // Click Listeners
         ivDialogProfilePic.setOnClickListener(v -> imagePickerLauncher.launch("image/*"));

@@ -9,8 +9,6 @@ import java.util.Locale;
 
 public class StepPrefs {
     private static final String KEY_PROFILE_PIC = "profile_pic_uri";
-    private static final String KEY_DARK_MODE = "dark_mode";
-    private static final String KEY_DAILY_PATH = "daily_path";
     private static final String KEY_GOAL_STEPS = "goal_steps";
     private static final String KEY_GOAL_RUN = "goal_run_km";
     private static final String KEY_TODAY_RUN_DIST = "today_run_dist";
@@ -43,6 +41,7 @@ public class StepPrefs {
                     .apply();
         }
     }
+
     // ===== NEW PROFILE FEATURES =====
     public static String getProfilePicUri(Context c) {
         return sp(c).getString(KEY_PROFILE_PIC, "");
@@ -51,27 +50,6 @@ public class StepPrefs {
         sp(c).edit().putString(KEY_PROFILE_PIC, uri).apply();
     }
 
-    public static boolean isDarkMode(Context c) {
-        return sp(c).getBoolean(KEY_DARK_MODE, true); // True is your default theme
-    }
-    public static void setDarkMode(Context c, boolean isDark) {
-        sp(c).edit().putBoolean(KEY_DARK_MODE, isDark).apply();
-    }
-    // ===== DAILY BREADCRUMB PATH =====
-    public static String getDailyPath(Context c) {
-        return sp(c).getString(KEY_DAILY_PATH, "");
-    }
-
-    public static void addPathPoint(Context c, double lat, double lng) {
-        String current = getDailyPath(c);
-        String newPoint = lat + "," + lng;
-        if (current.isEmpty()) {
-            sp(c).edit().putString(KEY_DAILY_PATH, newPoint).apply();
-        } else {
-            // We use a "|" to separate the coordinates!
-            sp(c).edit().putString(KEY_DAILY_PATH, current + "|" + newPoint).apply();
-        }
-    }
     // ===== DUAL GOALS =====
     public static int getStepGoal(Context c) {
         return sp(c).getInt(KEY_GOAL_STEPS, 10000); // Default 10,000
@@ -139,6 +117,5 @@ public class StepPrefs {
                 .putLong(KEY_BASELINE, -1)
                 .putLong(KEY_STEPS, 0)
                 .apply();
-        sp(c).edit().putString(KEY_DAILY_PATH, "").apply();
     }
 }
