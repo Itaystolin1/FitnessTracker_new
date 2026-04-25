@@ -20,7 +20,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
-import com.example.fitnesstracker.IntroActivity;
 
 import com.example.fitnesstracker.MainActivity;
 import com.example.fitnesstracker.R;
