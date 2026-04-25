@@ -151,10 +151,21 @@ public class ProfileDialogFragment extends DialogFragment {
         }
 
         // Theme Setup
+        TextView tvThemeLabel = view.findViewById(R.id.tvThemeLabel);
         boolean isDark = StepPrefs.isDarkMode(requireContext());
+
+        // Set initial state
         switchTheme.setChecked(isDark);
+        tvThemeLabel.setText(isDark ? "Dark Mode" : "Light Mode");
+
+        // Listen for user toggling the switch
         switchTheme.setOnCheckedChangeListener((buttonView, isChecked) -> {
             StepPrefs.setDarkMode(requireContext(), isChecked);
+
+            // Instantly change the text
+            tvThemeLabel.setText(isChecked ? "Dark Mode" : "Light Mode");
+
+            // Apply the theme to the whole app
             if (isChecked) {
                 AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
             } else {
